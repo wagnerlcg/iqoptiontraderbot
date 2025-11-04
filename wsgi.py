@@ -47,8 +47,19 @@ except Exception as e:
 while current_dir in sys.path:
     sys.path.remove(current_dir)
 
-# Importar a aplicação Flask
-from app import app
+# Importar a aplicação Flask diretamente pelo caminho completo
+# Isso evita precisar adicionar current_dir ao path
+import importlib.util
+app_path = os.path.join(current_dir, 'app.py')
+if os.path.exists(app_path):
+    spec = importlib.util.spec_from_file_location('app', app_path)
+    if spec and spec.loader:
+        app_module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(app_module)
+        app = app_module.app
+else:
+    # Fallback: tentar importar normalmente (pode causar conflito com http/)
+    from app import app
 
 # Se necessário, configurar variáveis de ambiente aqui
 # os.environ['FLASK_ENV'] = 'production'
