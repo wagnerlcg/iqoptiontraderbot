@@ -1,0 +1,8 @@
+#Use apenas 4 campos separados por ponto e vírgula:
+#M1;ATIVO;HH:MM;PUT/CALL
+#Exemplo: M1;EURUSD-OTC;19:00;CALL
+
+M1;USDJPY-OTC;07:28;PUT
+M1;USDJPY-OTC;07:29;PUT
+
+

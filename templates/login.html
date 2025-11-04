@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+
+{% block title %}Login - IQ Option Trading Bot{% endblock %}
+
+{% block content %}
+<div class="login-container">
+    <div class="login-card">
+        <div class="login-header">
+            <h2>IQ Option Trading Bot</h2>
+            <p>Faça login para começar</p>
+        </div>
+        
+        <form id="loginForm" class="login-form">
+            <div class="form-group">
+                <label for="email">Email</label>
+                <input type="email" id="email" name="email" required autocomplete="email">
+            </div>
+            
+            <div class="form-group">
+                <label for="password">Senha</label>
+                <input type="password" id="password" name="password" required autocomplete="current-password">
+            </div>
+            
+            <div class="form-group">
+                <label for="account_type">Tipo de Conta</label>
+                <select id="account_type" name="account_type" required>
+                    <option value="PRACTICE">Conta Demo (Prática)</option>
+                    <option value="REAL">Conta Real (Dinheiro Real)</option>
+                </select>
+                <small class="warning" id="realWarning" style="display: none;">
+                    ⚠️ ATENÇÃO: Conta REAL usa DINHEIRO REAL!
+                </small>
+            </div>
+            
+            <div class="form-actions">
+                <button type="submit" class="btn btn-primary">Entrar</button>
+            </div>
+            
+            <div id="loginError" class="alert alert-error" style="display: none;"></div>
+        </form>
+    </div>
+</div>
+
+<script>
+document.getElementById('account_type').addEventListener('change', function() {
+    const warning = document.getElementById('realWarning');
+    if (this.value === 'REAL') {
+        warning.style.display = 'block';
+    } else {
+        warning.style.display = 'none';
+    }
+});
+
+document.getElementById('loginForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    const email = document.getElementById('email').value;
+    const password = document.getElementById('password').value;
+    const accountType = document.getElementById('account_type').value;
+    const errorDiv = document.getElementById('loginError');
+    
+    const submitBtn = this.querySelector('button[type="submit"]');
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Conectando...';
+    
+    try {
+        const response = await fetch('/login', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                email: email,
+                password: password,
+                account_type: accountType
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            window.location.href = '/dashboard';
+        } else {
+            errorDiv.textContent = data.message || 'Erro ao fazer login';
+            errorDiv.style.display = 'block';
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'Entrar';
+        }
+    } catch (error) {
+        errorDiv.textContent = 'Erro de conexão: ' + error.message;
+        errorDiv.style.display = 'block';
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Entrar';
+    }
+});
+</script>
+{% endblock %}
+

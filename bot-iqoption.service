@@ -1,0 +1,24 @@
+[Unit]
+Description=Bot IQ Option API - Gunicorn daemon
+After=network.target
+
+[Service]
+User=www-data
+Group=www-data
+WorkingDirectory=/caminho/para/seu/projeto
+Environment="PATH=/caminho/para/seu/projeto/venv/bin"
+ExecStart=/caminho/para/seu/projeto/venv/bin/gunicorn \
+    --config /caminho/para/seu/projeto/gunicorn.conf.py \
+    wsgi:app
+
+Restart=always
+RestartSec=3
+
+# Segurança
+PrivateTmp=true
+ProtectSystem=strict
+ReadWritePaths=/caminho/para/seu/projeto/logs /caminho/para/seu/projeto/sinais.txt
+
+[Install]
+WantedBy=multi-user.target
+

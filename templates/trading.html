@@ -1,0 +1,420 @@
+{% extends "base.html" %}
+
+{% block title %}Trading - IQ Option Trading Bot{% endblock %}
+
+{% block content %}
+<div class="trading-container">
+    <div class="trading-header">
+        <h1>💹 Trading</h1>
+        <p>Execute operações de trading</p>
+    </div>
+    
+    <div class="trading-form-card">
+        <div class="form-group">
+            <label for="trading_mode">Modo de Trading</label>
+            <select id="trading_mode" name="trading_mode" required>
+                <option value="manual">Trading Manual</option>
+                <option value="analise">Análise de Mercado</option>
+                <option value="streaming">Streaming de Dados em Tempo Real</option>
+                <option value="portfolio">Gerenciamento de Portfolio</option>
+            </select>
+        </div>
+        
+        <!-- Formulário de Trading Manual -->
+        <div id="manualTradingForm" style="display: block;">
+        <form id="tradingForm">
+            <div class="form-group">
+                <label for="asset">Ativo</label>
+                <input type="text" id="asset" name="asset" placeholder="EURUSD, EURUSD-OTC, etc." required>
+            </div>
+            
+            <div class="form-group">
+                <label for="direction">Direção</label>
+                <select id="direction" name="direction" required>
+                    <option value="call">CALL (Alta)</option>
+                    <option value="put">PUT (Baixa)</option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label for="amount">Valor ($)</label>
+                <input type="number" id="amount" name="amount" min="0.1" step="0.1" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="expiry">Expiração (minutos)</label>
+                <select id="expiry" name="expiry" required>
+                    <option value="1">1 minuto</option>
+                    <option value="5" selected>5 minutos</option>
+                    <option value="15">15 minutos</option>
+                    <option value="30">30 minutos</option>
+                    <option value="60">1 hora</option>
+                </select>
+            </div>
+            
+            <div class="form-actions">
+                <button type="submit" class="btn btn-primary btn-large">Executar Operação</button>
+            </div>
+            
+            <div id="tradingMessage" class="alert" style="display: none;"></div>
+        </form>
+        </div>
+        
+        <!-- Formulário de Análise de Mercado -->
+        <div id="analiseForm" style="display: none;">
+            <div class="sinais-info">
+                <p><strong>Análise de Mercado</strong></p>
+                <p>Esta estratégia permite analisar tendências e padrões do mercado antes de executar operações.</p>
+                <p>Recursos disponíveis:</p>
+                <ul class="config-list">
+                    <li>Análise técnica de indicadores</li>
+                    <li>Identificação de tendências</li>
+                    <li>Análise de suporte e resistência</li>
+                    <li>Recomendações baseadas em dados históricos</li>
+                </ul>
+            </div>
+            <div class="form-actions">
+                <button type="button" class="btn btn-primary btn-large" onclick="showAlert('Funcionalidade em desenvolvimento', 'info', 'Em Desenvolvimento')">Iniciar Análise</button>
+            </div>
+        </div>
+        
+        <!-- Formulário de Streaming de Dados -->
+        <div id="streamingForm" style="display: none;">
+            <div class="sinais-info">
+                <p><strong>Streaming de Dados em Tempo Real</strong></p>
+                <p>Monitore dados de mercado em tempo real para tomar decisões informadas.</p>
+                <p>Recursos disponíveis:</p>
+                <ul class="config-list">
+                    <li>Atualizações de preços em tempo real</li>
+                    <li>Grafos e indicadores ao vivo</li>
+                    <li>Alertas de mudanças significativas</li>
+                    <li>Análise de volume e volatilidade</li>
+                </ul>
+            </div>
+            <div class="form-actions">
+                <button type="button" class="btn btn-primary btn-large" onclick="showAlert('Funcionalidade em desenvolvimento', 'info', 'Em Desenvolvimento')">Iniciar Streaming</button>
+            </div>
+        </div>
+        
+        <!-- Formulário de Gerenciamento de Portfolio -->
+        <div id="portfolioForm" style="display: none;">
+            <div class="sinais-info">
+                <p><strong>Gerenciamento de Portfolio</strong></p>
+                <p>Gerencie seu portfolio de operações e monitore performance.</p>
+                <p>Recursos disponíveis:</p>
+                <ul class="config-list">
+                    <li>Visualização de posições abertas</li>
+                    <li>Análise de performance geral</li>
+                    <li>Distribuição de risco</li>
+                    <li>Relatórios e estatísticas</li>
+                </ul>
+            </div>
+            <div class="form-actions">
+                <button type="button" class="btn btn-primary btn-large" onclick="showAlert('Funcionalidade em desenvolvimento', 'info', 'Em Desenvolvimento')">Ver Portfolio</button>
+            </div>
+        </div>
+    </div>
+    
+    <div class="trading-history">
+        <h2>Histórico Recente</h2>
+        <div id="historyContainer" class="history-list">
+            <p class="text-muted">Carregando histórico...</p>
+        </div>
+    </div>
+</div>
+
+<script>
+const history = [];
+
+// Alternar entre diferentes modos de trading
+document.getElementById('trading_mode').addEventListener('change', function() {
+    const mode = this.value;
+    const manualForm = document.getElementById('manualTradingForm');
+    const analiseForm = document.getElementById('analiseForm');
+    const streamingForm = document.getElementById('streamingForm');
+    const portfolioForm = document.getElementById('portfolioForm');
+    
+    // Ocultar todos os formulários
+    manualForm.style.display = 'none';
+    analiseForm.style.display = 'none';
+    streamingForm.style.display = 'none';
+    portfolioForm.style.display = 'none';
+    
+    // Mostrar o formulário correspondente ao modo selecionado
+    switch(mode) {
+        case 'manual':
+            manualForm.style.display = 'block';
+            break;
+        case 'analise':
+            analiseForm.style.display = 'block';
+            break;
+        case 'streaming':
+            streamingForm.style.display = 'block';
+            break;
+        case 'portfolio':
+            portfolioForm.style.display = 'block';
+            break;
+    }
+});
+
+document.getElementById('tradingForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    const asset = document.getElementById('asset').value.toUpperCase();
+    const direction = document.getElementById('direction').value;
+    const amount = parseFloat(document.getElementById('amount').value);
+    const expiry = parseInt(document.getElementById('expiry').value);
+    
+    const messageDiv = document.getElementById('tradingMessage');
+    const submitBtn = this.querySelector('button[type="submit"]');
+    
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Executando...';
+    
+    try {
+        const response = await fetch('/api/trade', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                asset: asset,
+                direction: direction,
+                amount: amount,
+                expiry: expiry
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            messageDiv.className = 'alert alert-success';
+            messageDiv.textContent = `Operação executada com sucesso! Order ID: ${data.order_id}`;
+            messageDiv.style.display = 'block';
+            
+            // Adicionar ao histórico
+            history.unshift({
+                asset: asset,
+                direction: direction.toUpperCase(),
+                amount: amount,
+                expiry: expiry,
+                order_id: data.order_id,
+                timestamp: new Date().toLocaleString(),
+                balance: data.balance
+            });
+            
+            loadHistory();
+            
+            // Limpar formulário
+            this.reset();
+        } else {
+            messageDiv.className = 'alert alert-error';
+            messageDiv.textContent = data.error || 'Erro ao executar operação';
+            messageDiv.style.display = 'block';
+        }
+    } catch (error) {
+        messageDiv.className = 'alert alert-error';
+        messageDiv.textContent = 'Erro de conexão: ' + error.message;
+        messageDiv.style.display = 'block';
+    }
+    
+    submitBtn.disabled = false;
+    submitBtn.textContent = 'Executar Operação';
+    
+    setTimeout(() => {
+        messageDiv.style.display = 'none';
+    }, 5000);
+});
+
+// Carregar histórico do servidor
+async function loadHistory() {
+    try {
+        const response = await fetch('/api/trade/history');
+        const data = await response.json();
+        
+        updateHistoryDisplay(data.history || []);
+    } catch (error) {
+        console.error('Erro ao carregar histórico:', error);
+        document.getElementById('historyContainer').innerHTML = '<p class="text-muted">Erro ao carregar histórico</p>';
+    }
+}
+
+function updateHistoryDisplay(history) {
+    const container = document.getElementById('historyContainer');
+    
+    if (history.length === 0) {
+        container.innerHTML = '<p class="text-muted">Nenhuma operação ainda</p>';
+        return;
+    }
+    
+    // Separar trades principais (não são Martingale) dos trades de Martingale
+    // Trade principal: não é Martingale E não tem parent_trade_id
+    const mainTrades = history.filter(t => !t.is_martingale && !t.parent_trade_id);
+    const martingaleTrades = history.filter(t => t.is_martingale && t.parent_trade_id);
+    
+    let html = '<div class="history-items">';
+    
+    // Mostrar apenas trades principais (agrupando Martingales)
+    mainTrades.slice(0, 20).forEach(trade => {
+        const statusBadge = getStatusBadge(trade.status);
+        const timeStr = new Date(trade.timestamp).toLocaleString('pt-BR');
+        
+        // Encontrar todos os Martingales relacionados a este trade
+        // Buscar todos que têm este trade como pai (direto ou indireto)
+        function findRelatedMartingales(tradeId) {
+            const direct = martingaleTrades.filter(t => t.parent_trade_id === tradeId);
+            const indirect = [];
+            direct.forEach(mt => {
+                indirect.push(...findRelatedMartingales(mt.id));
+            });
+            return [...direct, ...indirect];
+        }
+        
+        const relatedTrades = findRelatedMartingales(trade.id).sort((a, b) => a.martingale_level - b.martingale_level);
+        
+        const hasMartingale = relatedTrades.length > 0;
+        const lastMartingale = relatedTrades.length > 0 ? relatedTrades[relatedTrades.length - 1] : null;
+        
+        // Pode executar Martingale se trade perdeu e não tem Martingale pendente
+        let canExecuteMartingale = false;
+        if (trade.status === 'loss') {
+            if (!hasMartingale) {
+                canExecuteMartingale = true;
+            } else if (lastMartingale && lastMartingale.status !== 'pending' && lastMartingale.status === 'loss') {
+                canExecuteMartingale = true;
+            }
+        }
+        
+        html += `
+            <div class="history-item ${trade.status === 'loss' ? 'history-item-loss' : trade.status === 'win' ? 'history-item-win' : ''}">
+                <div class="history-main">
+                    <div class="history-header">
+                        <span class="history-asset">${trade.asset}</span>
+                        <span class="badge badge-${trade.direction === 'CALL' ? 'success' : 'danger'}">${trade.direction}</span>
+                        ${statusBadge}
+                    </div>
+                    ${trade.sinal ? `<div class="history-sinal"><strong>Sinal Enviado:</strong> ${trade.sinal}</div>` : ''}
+                    ${hasMartingale ? `
+                        <div class="history-martingale-chain">
+                            <strong>Cadeia de Martingale:</strong>
+                            ${relatedTrades.map((mt, idx) => `
+                                <span class="badge badge-warning">M${idx + 1}: ${mt.status === 'pending' ? 'Aguardando' : mt.status === 'win' ? 'WIN' : mt.status === 'loss' ? 'LOSS' : 'EQUAL'} ($${mt.amount.toFixed(2)})</span>
+                            `).join('')}
+                        </div>
+                    ` : ''}
+                    ${canExecuteMartingale ? `
+                        <div class="history-martingale-action">
+                            <button class="btn btn-sm btn-warning" onclick="executarMartingale(${trade.id}, '${trade.asset}', '${trade.direction}', ${trade.expiry}, ${relatedTrades.length})">
+                                Executar Martingale ${relatedTrades.length + 1}
+                            </button>
+                        </div>
+                    ` : ''}
+                </div>
+                <div class="history-details">
+                    <span><strong>Valor:</strong> $${trade.amount.toFixed(2)}</span>
+                    <span><strong>Expiração:</strong> ${trade.expiry} min</span>
+                    <span><strong>ID:</strong> ${trade.id}</span>
+                    ${trade.status !== 'pending' ? `<span class="history-profit ${trade.profit >= 0 ? 'profit-positive' : 'profit-negative'}">
+                        <strong>Resultado ${trade.status === 'win' ? 'WIN' : trade.status === 'loss' ? 'LOSS' : 'EQUAL'}:</strong> 
+                        $${trade.profit.toFixed(2)}
+                    </span>` : '<span class="history-status-pending">Aguardando resultado...</span>'}
+                    <span class="history-time">${timeStr}</span>
+                </div>
+            </div>
+        `;
+    });
+    html += '</div>';
+    
+    container.innerHTML = html;
+}
+
+function getStatusBadge(status) {
+    switch(status) {
+        case 'win':
+            return '<span class="badge badge-success">WIN</span>';
+        case 'loss':
+            return '<span class="badge badge-danger">LOSS</span>';
+        case 'equal':
+            return '<span class="badge badge-info">EQUAL</span>';
+        default:
+            return '<span class="badge badge-secondary">PENDENTE</span>';
+    }
+}
+
+// Executar Martingale
+async function executarMartingale(parentId, asset, direction, expiry, martingaleLevel = 0) {
+    try {
+        // Obter histórico completo para calcular valor correto
+        const historyResponse = await fetch('/api/trade/history');
+        const historyData = await historyResponse.json();
+        
+        // Encontrar a operação pai original (não martingale)
+        let baseTrade = historyData.history.find(t => t.id === parentId);
+        if (!baseTrade) {
+            await showAlert('Operação pai não encontrada', 'error');
+            return;
+        }
+        
+        // Encontrar o último martingale da cadeia
+        const martingaleChain = historyData.history.filter(t => {
+            let current = t;
+            while (current && current.parent_trade_id) {
+                if (current.parent_trade_id === parentId) return true;
+                current = historyData.history.find(h => h.id === current.parent_trade_id);
+            }
+            return false;
+        }).sort((a, b) => a.martingale_level - b.martingale_level);
+        
+        // Calcular valor do Martingale (dobrar o valor da última operação da cadeia)
+        let lastAmount = baseTrade.amount;
+        if (martingaleChain.length > 0) {
+            const lastMartingale = martingaleChain[martingaleChain.length - 1];
+            lastAmount = lastMartingale.amount;
+        }
+        
+        const martingaleAmount = lastAmount * 2.15;
+        const nextLevel = martingaleLevel + 1;
+        
+        const details = `Ativo: ${asset}\nDireção: ${direction}\nValor: $${martingaleAmount.toFixed(2)} (valor anterior × 2.15)`;
+        const confirmed = await showConfirm(`Deseja executar Martingale ${nextLevel} para recuperar a perda?`, 'Confirmar Martingale', details);
+        
+        if (!confirmed) {
+            return;
+        }
+        
+        const response = await fetch('/api/trade', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                asset: asset,
+                direction: direction.toLowerCase(),
+                amount: martingaleAmount,
+                expiry: expiry,
+                is_martingale: true,
+                parent_trade_id: parentId
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            // Recarregar histórico automaticamente
+            loadHistory();
+        } else {
+            await showAlert('Erro ao executar Martingale: ' + (data.error || 'Erro desconhecido'), 'error');
+        }
+    } catch (error) {
+        await showAlert('Erro ao executar Martingale: ' + error.message, 'error');
+    }
+}
+
+// Atualizar histórico a cada 5 segundos
+setInterval(loadHistory, 5000);
+
+// Carregar histórico ao iniciar
+loadHistory();
+</script>
+{% endblock %}
+

@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}IQ Option Trading Bot{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+    <nav class="navbar">
+        <div class="nav-container">
+            <div class="nav-brand">
+                <h1>IQ Option Bot</h1>
+            </div>
+            {% if session.logged_in %}
+            <ul class="nav-menu">
+                <li><a href="{{ url_for('dashboard') }}">Dashboard</a></li>
+                <li><a href="{{ url_for('config') }}">Configurações</a></li>
+                <li><a href="{{ url_for('stop_loss_page') }}">Stop Loss</a></li>
+                <li><a href="{{ url_for('sinais_page') }}">Sinais</a></li>
+                <li><a href="{{ url_for('trading_page') }}">Trading</a></li>
+                <li><a href="#" onclick="logout()">Sair</a></li>
+            </ul>
+            {% endif %}
+        </div>
+    </nav>
+
+    <main class="main-content">
+        {% block content %}{% endblock %}
+    </main>
+
+    <footer class="footer">
+        <p>&copy; 2025 IQ Option Trading Bot - Use com responsabilidade</p>
+    </footer>
+
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+    {% block extra_js %}{% endblock %}
+</body>
+</html>
+

@@ -1,0 +1,107 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - IQ Option Trading Bot{% endblock %}
+
+{% block content %}
+<div class="dashboard-container">
+    <div class="dashboard-header">
+        <h1>Dashboard</h1>
+        <div class="account-badge">
+            <span class="badge badge-{{ 'danger' if account_type == 'REAL' else 'info' }}">
+                {{ account_type }}
+            </span>
+        </div>
+    </div>
+    
+    <div class="stats-grid">
+        <div class="stat-card">
+            <div class="stat-icon">💰</div>
+            <div class="stat-content">
+                <h3>Saldo Atual</h3>
+                <p class="stat-value" id="currentBalance">${{ "%.2f"|format(balance) }}</p>
+            </div>
+        </div>
+        
+        <div class="stat-card">
+            <div class="stat-icon">📊</div>
+            <div class="stat-content">
+                <h3>Saldo Inicial</h3>
+                <p class="stat-value">${{ "%.2f"|format(initial_balance) }}</p>
+            </div>
+        </div>
+        
+        <div class="stat-card {{ 'positive' if variation >= 0 else 'negative' }}">
+            <div class="stat-icon">{{ '📈' if variation >= 0 else '📉' }}</div>
+            <div class="stat-content">
+                <h3>Variação</h3>
+                <p class="stat-value" id="variation">
+                    {{ '+' if variation >= 0 else '' }}${{ "%.2f"|format(variation) }}
+                    <span class="stat-percent">({{ '+' if variation_percent >= 0 else '' }}{{ "%.2f"|format(variation_percent) }}%)</span>
+                </p>
+            </div>
+        </div>
+        
+        <div class="stat-card">
+            <div class="stat-icon">⚙️</div>
+            <div class="stat-content">
+                <h3>Status</h3>
+                <p class="stat-value" id="connectionStatus">Conectado</p>
+            </div>
+        </div>
+    </div>
+    
+    <div class="quick-actions">
+        <h2>Ações Rápidas</h2>
+        <div class="actions-grid">
+            <a href="{{ url_for('config') }}" class="action-card">
+                <div class="action-icon">⚙️</div>
+                <h3>Configurações</h3>
+                <p>Configure Stop Loss, Stop Win e valores de entrada</p>
+            </a>
+            
+            <a href="{{ url_for('stop_loss_page') }}" class="action-card">
+                <div class="action-icon">🛡️</div>
+                <h3>Stop Loss</h3>
+                <p>Monitoramento de proteção de Stop Loss</p>
+            </a>
+            
+            <a href="{{ url_for('sinais_page') }}" class="action-card">
+                <div class="action-icon">📋</div>
+                <h3>Sinais</h3>
+                <p>Gerenciar sinais de trading</p>
+            </a>
+            
+            <a href="{{ url_for('trading_page') }}" class="action-card">
+                <div class="action-icon">💹</div>
+                <h3>Trading</h3>
+                <p>Executar operações de trading</p>
+            </a>
+        </div>
+    </div>
+</div>
+
+<script>
+// Atualizar saldo a cada 5 segundos
+setInterval(async () => {
+    try {
+        const response = await fetch('/api/balance');
+        const data = await response.json();
+        
+        if (data.balance !== undefined) {
+            document.getElementById('currentBalance').textContent = '$' + data.balance.toFixed(2);
+            
+            const variation = data.variation || 0;
+            const variationPercent = data.variation_percent || 0;
+            const variationEl = document.getElementById('variation');
+            variationEl.innerHTML = 
+                (variation >= 0 ? '+' : '') + '$' + variation.toFixed(2) +
+                ' <span class="stat-percent">(' +
+                (variationPercent >= 0 ? '+' : '') + variationPercent.toFixed(2) + '%)</span>';
+        }
+    } catch (error) {
+        console.error('Erro ao atualizar saldo:', error);
+    }
+}, 5000);
+</script>
+{% endblock %}
+

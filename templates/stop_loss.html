@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+
+{% block title %}Stop Loss - IQ Option Trading Bot{% endblock %}
+
+{% block content %}
+<div class="stop-loss-container">
+    <div class="stop-loss-header">
+        <h1>🛡️ Proteção de Stop Loss</h1>
+        <p class="priority-badge">PRIORIDADE MÁXIMA</p>
+    </div>
+    
+    {% if status %}
+    <div class="stop-loss-card {{ 'triggered' if status.is_triggered else 'active' }}">
+        <div class="stop-loss-status">
+            <div class="status-indicator {{ 'danger' if status.is_triggered else 'success' }}"></div>
+            <h2 id="statusText">
+                {{ 'STOP LOSS ACIONADO' if status.is_triggered else 'PROTEÇÃO ATIVA' }}
+            </h2>
+        </div>
+        
+        <div class="stop-loss-stats">
+            <div class="stat-row">
+                <span class="stat-label">Saldo Inicial:</span>
+                <span class="stat-value">${{ "%.2f"|format(status.initial_balance) }}</span>
+            </div>
+            
+            <div class="stat-row">
+                <span class="stat-label">Saldo Atual:</span>
+                <span class="stat-value" id="currentBalance">${{ "%.2f"|format(status.current_balance) }}</span>
+            </div>
+            
+            <div class="stat-row">
+                <span class="stat-label">Saldo Mínimo Permitido:</span>
+                <span class="stat-value">${{ "%.2f"|format(status.minimum_balance) }}</span>
+            </div>
+            
+            <div class="stat-row">
+                <span class="stat-label">Stop Loss Configurado:</span>
+                <span class="stat-value">{{ "%.2f"|format(stop_loss_percent) }}%</span>
+            </div>
+            
+            <div class="stat-row">
+                <span class="stat-label">Perda Atual:</span>
+                <span class="stat-value {{ 'negative' if status.loss_percent > 0 else '' }}" id="lossPercent">
+                    {{ "%.2f"|format(status.loss_percent) }}%
+                </span>
+            </div>
+            
+            <div class="stat-row">
+                <span class="stat-label">Pode Operar:</span>
+                <span class="stat-value" id="canOperate">
+                    {{ 'SIM' if status.can_operate else 'NÃO' }}
+                </span>
+            </div>
+        </div>
+        
+        {% if status.is_triggered %}
+        <div class="stop-loss-warning">
+            <h3>⚠️ ATENÇÃO: STOP LOSS ACIONADO</h3>
+            <p>Todas as operações foram bloqueadas automaticamente.</p>
+            <p>O robô não permitirá nenhuma operação adicional até que o saldo seja restaurado acima do limite mínimo.</p>
+        </div>
+        {% endif %}
+    </div>
+    {% else %}
+    <div class="alert alert-info">
+        <p>Stop Loss não foi inicializado. Configure as opções e faça login novamente.</p>
+    </div>
+    {% endif %}
+</div>
+
+<script>
+// Atualizar status a cada 2 segundos
+setInterval(async () => {
+    try {
+        const response = await fetch('/api/stop-loss/status');
+        const data = await response.json();
+        
+        if (data.is_triggered !== undefined) {
+            document.getElementById('statusText').textContent = 
+                data.is_triggered ? 'STOP LOSS ACIONADO' : 'PROTEÇÃO ATIVA';
+            
+            document.getElementById('currentBalance').textContent = 
+                '$' + data.current_balance.toFixed(2);
+            
+            document.getElementById('lossPercent').textContent = 
+                data.loss_percent.toFixed(2) + '%';
+            
+            document.getElementById('canOperate').textContent = 
+                data.can_operate ? 'SIM' : 'NÃO';
+            
+            // Atualizar classe do card
+            const card = document.querySelector('.stop-loss-card');
+            if (card) {
+                card.className = 'stop-loss-card ' + (data.is_triggered ? 'triggered' : 'active');
+            }
+        }
+    } catch (error) {
+        console.error('Erro ao atualizar status:', error);
+    }
+}, 2000);
+</script>
+{% endblock %}
+

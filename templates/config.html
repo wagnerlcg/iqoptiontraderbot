@@ -1,0 +1,175 @@
+{% extends "base.html" %}
+
+{% block title %}Configurações - IQ Option Trading Bot{% endblock %}
+
+{% block content %}
+<div class="config-container">
+    <div class="config-header">
+        <h1>Configurações de Trading</h1>
+        <p>Configure seus parâmetros de trading</p>
+    </div>
+    
+    <form id="configForm" class="config-form">
+        <div class="config-section">
+            <h2>🛡️ Stop Loss (Prioridade Máxima)</h2>
+            <p class="section-description">
+                O Stop Loss é IMPRESCINDÍVEL e tem PRIORIDADE MÁXIMA. 
+                O robô não permitirá nenhuma operação se o stop loss for atingido.
+            </p>
+            <div class="form-group">
+                <label for="stop_loss">Stop Loss (%)</label>
+                <input type="number" id="stop_loss" name="stop_loss" 
+                       value="{{ stop_loss }}" min="0.1" max="99" step="0.1" required>
+                <small>Porcentagem máxima de perda permitida (ex: 5 para 5%)</small>
+            </div>
+        </div>
+        
+        <div class="config-section">
+            <h2>🎯 Stop Win</h2>
+            <div class="form-group">
+                <label for="stop_win">Stop Win (%)</label>
+                <input type="number" id="stop_win" name="stop_win" 
+                       value="{{ stop_win }}" min="1" step="1" required>
+                <small>Porcentagem de ganho para parar (ex: 100 para 100%)</small>
+            </div>
+        </div>
+        
+        <div class="config-section">
+            <h2>💰 Tipo de Entrada</h2>
+            <div class="form-group">
+                <label for="entry_type">Tipo de Entrada</label>
+                <select id="entry_type" name="entry_type" required>
+                    <option value="PERCENT" {% if entry_type == 'PERCENT' %}selected{% endif %}>
+                        Porcentagem da Banca
+                    </option>
+                    <option value="FIXED" {% if entry_type == 'FIXED' %}selected{% endif %}>
+                        Valor Fixo
+                    </option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label for="entry_value" id="entry_value_label">
+                    {% if entry_type == 'PERCENT' %}
+                        Valor da Entrada (%)
+                    {% else %}
+                        Valor da Entrada ($)
+                    {% endif %}
+                </label>
+                <input type="number" id="entry_value" name="entry_value" 
+                       value="{{ entry_value }}" min="0.1" step="0.1" required>
+                <small id="entry_value_help">
+                    {% if entry_type == 'PERCENT' %}
+                        Porcentagem da banca a ser usada em cada operação
+                    {% else %}
+                        Valor fixo em dólares para cada operação
+                    {% endif %}
+                </small>
+            </div>
+        </div>
+        
+        <div class="config-section">
+            <h2>📈 Martingale (Gale)</h2>
+            <div class="form-group">
+                <label for="gale">Estratégia de Martingale</label>
+                <select id="gale" name="gale" required>
+                    <option value="0" {% if gale == 0 %}selected{% endif %}>Sem Gale</option>
+                    <option value="1" {% if gale == 1 %}selected{% endif %}>Gale 1 (1 retry)</option>
+                    <option value="2" {% if gale == 2 %}selected{% endif %}>Gale 2 (2 retries)</option>
+                </select>
+                <small>
+                    <strong>Sem Gale:</strong> Não reentra após LOSS<br>
+                    <strong>Gale 1:</strong> Reentra 1 vez após LOSS (valor × 2.15)<br>
+                    <strong>Gale 2:</strong> Reentra até 2 vezes após LOSS (valor × 2.15 em cada entrada)
+                </small>
+            </div>
+            <div class="sinais-info" style="margin-top: 1rem; padding: 1rem; background-color: rgba(245, 158, 11, 0.1); border-radius: 0.5rem;">
+                <p><strong>Exemplo Gale 1:</strong></p>
+                <ul style="margin: 0.5rem 0 0 1.5rem; padding: 0;">
+                    <li>1ª entrada: $100 → LOSS</li>
+                    <li>2ª entrada: $215 (reentrada automática)</li>
+                </ul>
+                <p style="margin-top: 1rem;"><strong>Exemplo Gale 2:</strong></p>
+                <ul style="margin: 0.5rem 0 0 1.5rem; padding: 0;">
+                    <li>1ª entrada: $100 → LOSS</li>
+                    <li>2ª entrada: $215 → LOSS</li>
+                    <li>3ª entrada: $462.25 (última reentrada)</li>
+                </ul>
+            </div>
+        </div>
+        
+        <div class="form-actions">
+            <button type="submit" class="btn btn-primary">Salvar Configurações</button>
+        </div>
+        
+        <div id="configMessage" class="alert" style="display: none;"></div>
+    </form>
+</div>
+
+<script>
+document.getElementById('entry_type').addEventListener('change', function() {
+    const label = document.getElementById('entry_value_label');
+    const help = document.getElementById('entry_value_help');
+    
+    if (this.value === 'PERCENT') {
+        label.textContent = 'Valor da Entrada (%)';
+        help.textContent = 'Porcentagem da banca a ser usada em cada operação';
+    } else {
+        label.textContent = 'Valor da Entrada ($)';
+        help.textContent = 'Valor fixo em dólares para cada operação';
+    }
+});
+
+document.getElementById('configForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    const formData = {
+        stop_loss: parseFloat(document.getElementById('stop_loss').value),
+        stop_win: parseFloat(document.getElementById('stop_win').value),
+        entry_type: document.getElementById('entry_type').value,
+        entry_value: parseFloat(document.getElementById('entry_value').value),
+        gale: parseInt(document.getElementById('gale').value)
+    };
+    
+    const messageDiv = document.getElementById('configMessage');
+    const submitBtn = this.querySelector('button[type="submit"]');
+    
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Salvando...';
+    
+    try {
+        const response = await fetch('/api/config', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(formData)
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            messageDiv.className = 'alert alert-success';
+            messageDiv.textContent = data.message || 'Configurações salvas com sucesso!';
+            messageDiv.style.display = 'block';
+        } else {
+            messageDiv.className = 'alert alert-error';
+            messageDiv.textContent = data.error || 'Erro ao salvar configurações';
+            messageDiv.style.display = 'block';
+        }
+    } catch (error) {
+        messageDiv.className = 'alert alert-error';
+        messageDiv.textContent = 'Erro de conexão: ' + error.message;
+        messageDiv.style.display = 'block';
+    }
+    
+    submitBtn.disabled = false;
+    submitBtn.textContent = 'Salvar Configurações';
+    
+    setTimeout(() => {
+        messageDiv.style.display = 'none';
+    }, 5000);
+});
+</script>
+{% endblock %}
+

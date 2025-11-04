@@ -1,0 +1,785 @@
+{% extends "base.html" %}
+
+{% block title %}Sinais - IQ Option Trading Bot{% endblock %}
+
+{% block content %}
+<div class="sinais-container">
+    <div class="sinais-header">
+        <h1>📋 Gerenciamento de Sinais</h1>
+        <button class="btn btn-primary" onclick="showAddSinalModal()">+ Adicionar Sinal</button>
+    </div>
+    
+    {% if erros %}
+    <div class="alert alert-warning">
+        <h3>Erros encontrados:</h3>
+        <ul>
+            {% for erro in erros %}
+            <li>{{ erro }}</li>
+            {% endfor %}
+        </ul>
+    </div>
+    {% endif %}
+    
+    <div class="sinais-table-container">
+        <table class="sinais-table">
+            <thead>
+                <tr>
+                    <th>Timeframe</th>
+                    <th>Ativo</th>
+                    <th>Hora</th>
+                    <th>Direção</th>
+                    <th>Ações</th>
+                </tr>
+            </thead>
+            <tbody id="sinaisTableBody">
+                {% for sinal in sinais %}
+                <tr>
+                    <td>{{ sinal.timeframe }}</td>
+                    <td>{{ sinal.ativo }}</td>
+                    <td>{{ sinal.hora }}</td>
+                    <td>
+                        <span class="badge badge-{{ 'success' if sinal.direcao == 'CALL' else 'danger' }}">
+                            {{ sinal.direcao }}
+                        </span>
+                    </td>
+                    <td>
+                        <button class="btn btn-sm btn-danger" onclick="deleteSinal({{ loop.index0 }})">Excluir</button>
+                    </td>
+                </tr>
+                {% endfor %}
+                {% if not sinais %}
+                <tr>
+                    <td colspan="5" class="text-center">Nenhum sinal encontrado</td>
+                </tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+    
+    <div class="sinais-editor">
+        <h2>Editar Arquivo de Sinais</h2>
+        <p class="help-text">
+            Formato: TIMEFRAME;ATIVO;HORA;DIREÇÃO<br>
+            Exemplo: M1;EURUSD-OTC;19:00;CALL
+        </p>
+        <textarea id="sinaisContent" class="sinais-textarea" rows="15"></textarea>
+        <div class="editor-actions">
+            <button class="btn btn-primary" onclick="saveSinais()">Salvar</button>
+            <button class="btn btn-secondary" onclick="showUploadModal()">Novo Arquivo</button>
+            <button class="btn btn-success" id="executarSinaisBtn" onclick="toggleExecutarSinais()">Executar Sinais</button>
+        </div>
+    </div>
+    
+    <div class="trading-history">
+        <h2>Histórico Recente</h2>
+        <div id="historyContainer" class="history-list">
+            <p class="text-muted">Carregando histórico...</p>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para adicionar sinal -->
+<div id="addSinalModal" class="modal" style="display: none;">
+    <div class="modal-content">
+        <span class="close" onclick="closeAddSinalModal()">&times;</span>
+        <h2>Adicionar Sinal</h2>
+        <form id="addSinalForm">
+            <div class="form-group">
+                <label for="modal_timeframe">Timeframe</label>
+                <input type="text" id="modal_timeframe" placeholder="M1, M5, M15, etc." required>
+            </div>
+            <div class="form-group">
+                <label for="modal_ativo">Ativo</label>
+                <input type="text" id="modal_ativo" placeholder="EURUSD, EURUSD-OTC, etc." required>
+            </div>
+            <div class="form-group">
+                <label for="modal_hora">Hora (HH:MM)</label>
+                <input type="text" id="modal_hora" placeholder="19:00" pattern="[0-9]{2}:[0-9]{2}" required>
+            </div>
+            <div class="form-group">
+                <label for="modal_direcao">Direção</label>
+                <select id="modal_direcao" required>
+                    <option value="CALL">CALL</option>
+                    <option value="PUT">PUT</option>
+                </select>
+            </div>
+            <div class="form-actions">
+                <button type="submit" class="btn btn-primary">Adicionar</button>
+                <button type="button" class="btn btn-secondary" onclick="closeAddSinalModal()">Cancelar</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Modal para upload de arquivo -->
+<div id="uploadModal" class="modal" style="display: none;">
+    <div class="modal-content">
+        <span class="close" onclick="closeUploadModal()">&times;</span>
+        <h2>Fazer Upload de Novo Arquivo</h2>
+        <div class="sinais-info" style="margin-bottom: 1.5rem;">
+            <p><strong>Formato do arquivo:</strong></p>
+            <p>O arquivo deve conter sinais no formato:</p>
+            <code style="display: block; padding: 0.5rem; background-color: var(--bg-color); border-radius: 0.25rem; margin-top: 0.5rem;">
+                TIMEFRAME;ATIVO;HORA;DIREÇÃO<br>
+                Exemplo: M1;EURUSD-OTC;19:00;CALL
+            </code>
+        </div>
+        <form id="uploadForm">
+            <div class="form-group">
+                <label for="fileInput">Selecione o arquivo (.txt)</label>
+                <input type="file" id="fileInput" accept=".txt" required>
+                <small style="display: block; margin-top: 0.5rem; color: var(--text-secondary);">
+                    O arquivo atual será substituído pelo novo arquivo.
+                </small>
+            </div>
+            <div class="form-actions">
+                <button type="submit" class="btn btn-primary">Fazer Upload</button>
+                <button type="button" class="btn btn-secondary" onclick="closeUploadModal()">Cancelar</button>
+            </div>
+        </form>
+        <div id="uploadMessage" class="alert" style="display: none; margin-top: 1rem;"></div>
+    </div>
+</div>
+
+<script>
+async function loadSinais() {
+    try {
+        const response = await fetch('/api/sinais');
+        const data = await response.json();
+        
+        let content = '';
+        data.sinais.forEach(sinal => {
+            content += `${sinal.timeframe};${sinal.ativo};${sinal.hora};${sinal.direcao}\n`;
+        });
+        
+        document.getElementById('sinaisContent').value = content;
+    } catch (error) {
+        await showAlert('Erro ao carregar sinais: ' + error.message, 'error');
+    }
+}
+
+async function saveSinais() {
+    const content = document.getElementById('sinaisContent').value;
+    
+    try {
+        const response = await fetch('/api/sinais', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                action: 'save',
+                content: content
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            await showAlert('Sinais salvos com sucesso!', 'success');
+            location.reload();
+        } else {
+            await showAlert('Erro: ' + (data.error || 'Erro desconhecido'), 'error');
+        }
+    } catch (error) {
+        await showAlert('Erro ao salvar sinais: ' + error.message, 'error');
+    }
+}
+
+function showAddSinalModal() {
+    document.getElementById('addSinalModal').style.display = 'block';
+}
+
+function closeAddSinalModal() {
+    document.getElementById('addSinalModal').style.display = 'none';
+    document.getElementById('addSinalForm').reset();
+}
+
+// Funções para modal de upload
+function showUploadModal() {
+    document.getElementById('uploadModal').style.display = 'block';
+    document.getElementById('uploadMessage').style.display = 'none';
+}
+
+function closeUploadModal() {
+    document.getElementById('uploadModal').style.display = 'none';
+    document.getElementById('uploadForm').reset();
+    document.getElementById('uploadMessage').style.display = 'none';
+}
+
+// Fechar modal de upload ao clicar fora
+document.getElementById('uploadModal').addEventListener('click', function(e) {
+    if (e.target === this) {
+        closeUploadModal();
+    }
+});
+
+// Fechar modal de adicionar sinal ao clicar fora
+document.getElementById('addSinalModal').addEventListener('click', function(e) {
+    if (e.target === this) {
+        closeAddSinalModal();
+    }
+});
+
+// Handler para upload de arquivo
+document.getElementById('uploadForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    const fileInput = document.getElementById('fileInput');
+    const file = fileInput.files[0];
+    const messageDiv = document.getElementById('uploadMessage');
+    const submitBtn = this.querySelector('button[type="submit"]');
+    
+    if (!file) {
+        messageDiv.className = 'alert alert-error';
+        messageDiv.textContent = 'Por favor, selecione um arquivo.';
+        messageDiv.style.display = 'block';
+        return;
+    }
+    
+    // Confirmar substituição
+    const confirmed = await showConfirm(
+        'Tem certeza que deseja substituir o arquivo atual?',
+        'Confirmar Upload',
+        'O arquivo atual será completamente substituído pelo novo arquivo.'
+    );
+    
+    if (!confirmed) {
+        return;
+    }
+    
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Enviando...';
+    messageDiv.style.display = 'none';
+    
+    try {
+        const formData = new FormData();
+        formData.append('file', file);
+        
+        const response = await fetch('/api/sinais/upload', {
+            method: 'POST',
+            body: formData
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            await showAlert('Arquivo enviado com sucesso!', 'success');
+            closeUploadModal();
+            location.reload();
+        } else {
+            messageDiv.className = 'alert alert-error';
+            messageDiv.textContent = 'Erro: ' + (data.error || 'Erro desconhecido');
+            messageDiv.style.display = 'block';
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'Fazer Upload';
+        }
+    } catch (error) {
+        messageDiv.className = 'alert alert-error';
+        messageDiv.textContent = 'Erro ao fazer upload: ' + error.message;
+        messageDiv.style.display = 'block';
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Fazer Upload';
+    }
+});
+
+// Função para excluir um sinal
+async function deleteSinal(index) {
+    try {
+        // Carregar sinais para obter informações do sinal a ser excluído
+        const response = await fetch('/api/sinais');
+        const data = await response.json();
+        
+        if (index < 0 || index >= data.sinais.length) {
+            await showAlert('Índice inválido', 'error');
+            return;
+        }
+        
+        const sinal = data.sinais[index];
+        const sinalInfo = `${sinal.timeframe};${sinal.ativo};${sinal.hora};${sinal.direcao}`;
+        
+        // Confirmar exclusão
+        const confirmed = await showConfirm(
+            `Deseja realmente excluir este sinal?`,
+            'Confirmar Exclusão',
+            sinalInfo
+        );
+        
+        if (!confirmed) {
+            return;
+        }
+        
+        // Excluir o sinal
+        const deleteResponse = await fetch('/api/sinais', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                action: 'delete',
+                index: index
+            })
+        });
+        
+        const deleteData = await deleteResponse.json();
+        
+        if (deleteData.success) {
+            await showAlert('Sinal excluído com sucesso!', 'success');
+            location.reload();
+        } else {
+            await showAlert('Erro: ' + (deleteData.error || 'Erro desconhecido'), 'error');
+        }
+    } catch (error) {
+        await showAlert('Erro ao excluir sinal: ' + error.message, 'error');
+    }
+}
+
+document.getElementById('addSinalForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    const sinal = {
+        timeframe: document.getElementById('modal_timeframe').value.toUpperCase(),
+        ativo: document.getElementById('modal_ativo').value.toUpperCase(),
+        hora: document.getElementById('modal_hora').value,
+        direcao: document.getElementById('modal_direcao').value
+    };
+    
+    try {
+        const response = await fetch('/api/sinais', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                action: 'add',
+                sinal: sinal
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            await showAlert('Sinal adicionado com sucesso!', 'success');
+            closeAddSinalModal();
+            location.reload();
+        } else {
+            await showAlert('Erro: ' + (data.error || 'Erro desconhecido'), 'error');
+        }
+    } catch (error) {
+        await showAlert('Erro ao adicionar sinal: ' + error.message, 'error');
+    }
+});
+
+// Carregar sinais ao abrir a página
+loadSinais();
+
+// ========== FUNÇÕES DE EXECUÇÃO DE SINAIS ==========
+
+// Verificar status da execução ao carregar a página
+async function checkSinaisStatus() {
+    try {
+        const response = await fetch('/api/sinais/status');
+        const data = await response.json();
+        
+        const btn = document.getElementById('executarSinaisBtn');
+        if (data.running) {
+            btn.textContent = 'Parar Execução';
+            btn.className = 'btn btn-danger';
+        } else {
+            btn.textContent = 'Executar Sinais';
+            btn.className = 'btn btn-success';
+        }
+    } catch (error) {
+        console.error('Erro ao verificar status:', error);
+    }
+}
+
+// Alternar execução de sinais (iniciar/parar)
+async function toggleExecutarSinais() {
+    const btn = document.getElementById('executarSinaisBtn');
+    
+    try {
+        // Verificar status atual
+        const statusResponse = await fetch('/api/sinais/status');
+        const statusData = await statusResponse.json();
+        
+        if (statusData.running) {
+            // Parar execução
+            const confirmed = await showConfirm(
+                'Deseja realmente parar a execução de sinais?',
+                'Parar Execução'
+            );
+            
+            if (!confirmed) {
+                return;
+            }
+            
+            btn.disabled = true;
+            btn.textContent = 'Parando...';
+            
+            const response = await fetch('/api/sinais/stop', {
+                method: 'POST'
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                await showAlert('Execução de sinais parada com sucesso!', 'success');
+                btn.textContent = 'Executar Sinais';
+                btn.className = 'btn btn-success';
+                
+                // Forçar atualização do histórico para mostrar o log de parada
+                setTimeout(() => {
+                    loadHistory();
+                }, 500);
+            } else {
+                await showAlert('Erro ao parar execução: ' + (data.error || 'Erro desconhecido'), 'error');
+            }
+            
+            btn.disabled = false;
+            
+            // Verificar status novamente após um pequeno delay para garantir que parou
+            setTimeout(async () => {
+                try {
+                    const statusCheck = await fetch('/api/sinais/status');
+                    const statusData = await statusCheck.json();
+                    if (!statusData.running) {
+                        btn.textContent = 'Executar Sinais';
+                        btn.className = 'btn btn-success';
+                    }
+                } catch (err) {
+                    console.error('Erro ao verificar status:', err);
+                }
+            }, 1000);
+        } else {
+            // Iniciar execução
+            const confirmed = await showConfirm(
+                'Deseja iniciar a execução de sinais?',
+                'Iniciar Execução',
+                'Os sinais do arquivo serão executados automaticamente conforme os horários programados.'
+            );
+            
+            if (!confirmed) {
+                return;
+            }
+            
+            btn.disabled = true;
+            btn.textContent = 'Iniciando...';
+            
+            const response = await fetch('/api/sinais/executar', {
+                method: 'POST'
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                await showAlert('Execução de sinais iniciada com sucesso!', 'success');
+                btn.textContent = 'Parar Execução';
+                btn.className = 'btn btn-danger';
+                
+                // Iniciar atualização de status
+                startStatusUpdates();
+            } else {
+                await showAlert('Erro ao iniciar execução: ' + (data.error || 'Erro desconhecido'), 'error');
+            }
+            
+            btn.disabled = false;
+        }
+    } catch (error) {
+        await showAlert('Erro: ' + error.message, 'error');
+        btn.disabled = false;
+        btn.textContent = 'Executar Sinais';
+    }
+}
+
+// Atualizar status da execução periodicamente
+let statusUpdateInterval = null;
+
+function startStatusUpdates() {
+    // Limpar intervalo anterior se existir
+    if (statusUpdateInterval) {
+        clearInterval(statusUpdateInterval);
+    }
+    
+    statusUpdateInterval = setInterval(async () => {
+        try {
+            const response = await fetch('/api/sinais/status');
+            const data = await response.json();
+            
+            const btn = document.getElementById('executarSinaisBtn');
+            
+            if (!data.running) {
+                btn.textContent = 'Executar Sinais';
+                btn.className = 'btn btn-success';
+                clearInterval(statusUpdateInterval);
+                statusUpdateInterval = null;
+            }
+        } catch (error) {
+            console.error('Erro ao atualizar status:', error);
+        }
+    }, 2000); // Atualizar a cada 2 segundos
+}
+
+// Verificar status ao carregar a página
+checkSinaisStatus();
+
+// ========== FUNÇÕES DO HISTÓRICO ==========
+
+// Carregar histórico do servidor
+async function loadHistory() {
+    try {
+        // Carregar trades e logs
+        const [historyResponse, logsResponse] = await Promise.all([
+            fetch('/api/trade/history').catch(err => {
+                console.error('Erro ao buscar histórico:', err);
+                return { json: () => Promise.resolve({ history: [] }) };
+            }),
+            fetch('/api/sinais/logs').catch(err => {
+                console.error('Erro ao buscar logs:', err);
+                return { json: () => Promise.resolve({ logs: [] }) };
+            })
+        ]);
+        
+        const historyData = await historyResponse.json();
+        const logsData = await logsResponse.json();
+        
+        updateHistoryDisplay(historyData.history || [], logsData.logs || []);
+    } catch (error) {
+        console.error('Erro ao carregar histórico:', error);
+        const container = document.getElementById('historyContainer');
+        if (container) {
+            container.innerHTML = '<p class="text-muted">Erro ao carregar histórico. Tente recarregar a página.</p>';
+        }
+    }
+}
+
+function updateHistoryDisplay(history, logs) {
+    const container = document.getElementById('historyContainer');
+    
+    if (!container) {
+        console.error('Elemento historyContainer não encontrado');
+        return;
+    }
+    
+    let html = '';
+    
+    // Mostrar logs primeiro se houver
+    if (logs && logs.length > 0) {
+        html += '<div class="logs-section" style="margin-bottom: 2rem;">';
+        html += '<h3 style="font-size: 1rem; margin-bottom: 1rem; color: var(--text-primary);">📋 Logs de Execução</h3>';
+        html += '<div class="logs-container" style="max-height: 300px; overflow-y: auto; background: var(--bg-secondary); border-radius: 0.5rem; padding: 1rem;">';
+        
+        logs.slice(0, 20).forEach(log => {
+            const timeStr = new Date(log.timestamp).toLocaleTimeString('pt-BR');
+            let logClass = 'log-info';
+            let icon = 'ℹ️';
+            
+            if (log.type === 'success') {
+                logClass = 'log-success';
+                icon = '✅';
+            } else if (log.type === 'error') {
+                logClass = 'log-error';
+                icon = '❌';
+            } else if (log.type === 'warning') {
+                logClass = 'log-warning';
+                icon = '⚠️';
+            }
+            
+            html += `
+                <div class="log-entry ${logClass}" style="padding: 0.5rem; margin-bottom: 0.5rem; border-left: 3px solid ${log.type === 'success' ? '#10b981' : log.type === 'error' ? '#ef4444' : log.type === 'warning' ? '#f59e0b' : '#3b82f6'}; background: rgba(255,255,255,0.05);">
+                    <span style="color: var(--text-secondary); font-size: 0.85rem;">${timeStr}</span>
+                    <span style="margin: 0 0.5rem;">${icon}</span>
+                    <span>${log.message}</span>
+                </div>
+            `;
+        });
+        
+        html += '</div></div>';
+    }
+    
+    // Mostrar trades
+    if (!history || history.length === 0) {
+        if (!logs || logs.length === 0) {
+            html += '<div class="empty-state" style="text-align: center; padding: 2rem; color: var(--text-secondary);">';
+            html += '<p style="font-size: 1rem; margin-bottom: 0.5rem;">📭 Nenhuma operação ainda</p>';
+            html += '<p style="font-size: 0.85rem;">Os logs de execução e operações aparecerão aqui quando você iniciar a execução de sinais.</p>';
+            html += '</div>';
+            container.innerHTML = html;
+            return;
+        } else {
+            html += '<div class="trades-section"><h3 style="font-size: 1rem; margin-bottom: 1rem; color: var(--text-primary);">💼 Operações</h3><p class="text-muted">Nenhuma operação ainda</p></div>';
+            container.innerHTML = html;
+            return;
+        }
+    }
+    
+    // Separar trades principais (não são Martingale) dos trades de Martingale
+    const mainTrades = history.filter(t => !t.is_martingale && !t.parent_trade_id);
+    const martingaleTrades = history.filter(t => t.is_martingale && t.parent_trade_id);
+    
+    html += '<div class="trades-section"><h3 style="font-size: 1rem; margin-bottom: 1rem; color: var(--text-primary);">💼 Operações</h3><div class="history-items">';
+    
+    // Mostrar apenas trades principais (agrupando Martingales)
+    mainTrades.slice(0, 20).forEach(trade => {
+        const statusBadge = getStatusBadge(trade.status);
+        const timeStr = new Date(trade.timestamp).toLocaleString('pt-BR');
+        
+        // Encontrar todos os Martingales relacionados a este trade
+        // Buscar todos que têm este trade como pai (direto ou indireto)
+        function findRelatedMartingales(tradeId) {
+            const direct = martingaleTrades.filter(t => t.parent_trade_id === tradeId);
+            const indirect = [];
+            direct.forEach(mt => {
+                indirect.push(...findRelatedMartingales(mt.id));
+            });
+            return [...direct, ...indirect];
+        }
+        
+        const relatedTrades = findRelatedMartingales(trade.id).sort((a, b) => a.martingale_level - b.martingale_level);
+        
+        const hasMartingale = relatedTrades.length > 0;
+        const lastMartingale = relatedTrades.length > 0 ? relatedTrades[relatedTrades.length - 1] : null;
+        
+        // Pode executar Martingale se trade perdeu e não tem Martingale pendente
+        let canExecuteMartingale = false;
+        if (trade.status === 'loss') {
+            if (!hasMartingale) {
+                canExecuteMartingale = true;
+            } else if (lastMartingale && lastMartingale.status !== 'pending' && lastMartingale.status === 'loss') {
+                canExecuteMartingale = true;
+            }
+        }
+        
+        html += `
+            <div class="history-item ${trade.status === 'loss' ? 'history-item-loss' : trade.status === 'win' ? 'history-item-win' : ''}">
+                <div class="history-main">
+                    <div class="history-header">
+                        <span class="history-asset">${trade.asset}</span>
+                        <span class="badge badge-${trade.direction === 'CALL' ? 'success' : 'danger'}">${trade.direction}</span>
+                        ${statusBadge}
+                    </div>
+                    ${trade.sinal ? `<div class="history-sinal"><strong>Sinal Enviado:</strong> ${trade.sinal}</div>` : ''}
+                    ${hasMartingale ? `
+                        <div class="history-martingale-chain">
+                            <strong>Cadeia de Martingale:</strong>
+                            ${relatedTrades.map((mt, idx) => `
+                                <span class="badge badge-warning">M${idx + 1}: ${mt.status === 'pending' ? 'Aguardando' : mt.status === 'win' ? 'WIN' : mt.status === 'loss' ? 'LOSS' : 'EQUAL'} ($${mt.amount.toFixed(2)})</span>
+                            `).join('')}
+                        </div>
+                    ` : ''}
+                    ${canExecuteMartingale ? `
+                        <div class="history-martingale-action">
+                            <button class="btn btn-sm btn-warning" onclick="executarMartingale(${trade.id}, '${trade.asset}', '${trade.direction}', ${trade.expiry}, ${relatedTrades.length})">
+                                Executar Martingale ${relatedTrades.length + 1}
+                            </button>
+                        </div>
+                    ` : ''}
+                </div>
+                <div class="history-details">
+                    <span><strong>Valor:</strong> $${trade.amount.toFixed(2)}</span>
+                    <span><strong>Expiração:</strong> ${trade.expiry} min</span>
+                    <span><strong>ID:</strong> ${trade.id}</span>
+                    ${trade.status !== 'pending' ? `<span class="history-profit ${trade.profit >= 0 ? 'profit-positive' : 'profit-negative'}">
+                        <strong>Resultado ${trade.status === 'win' ? 'WIN' : trade.status === 'loss' ? 'LOSS' : 'EQUAL'}:</strong> 
+                        $${trade.profit.toFixed(2)}
+                    </span>` : '<span class="history-status-pending">Aguardando resultado...</span>'}
+                    <span class="history-time">${timeStr}</span>
+                </div>
+            </div>
+        `;
+    });
+    html += '</div></div>';
+    
+    container.innerHTML = html;
+}
+
+function getStatusBadge(status) {
+    switch(status) {
+        case 'win':
+            return '<span class="badge badge-success">WIN</span>';
+        case 'loss':
+            return '<span class="badge badge-danger">LOSS</span>';
+        case 'equal':
+            return '<span class="badge badge-info">EQUAL</span>';
+        default:
+            return '<span class="badge badge-secondary">PENDENTE</span>';
+    }
+}
+
+// Executar Martingale
+async function executarMartingale(parentId, asset, direction, expiry, martingaleLevel = 0) {
+    try {
+        // Obter histórico completo para calcular valor correto
+        const historyResponse = await fetch('/api/trade/history');
+        const historyData = await historyResponse.json();
+        
+        // Encontrar a operação pai original (não martingale)
+        let baseTrade = historyData.history.find(t => t.id === parentId);
+        if (!baseTrade) {
+            await showAlert('Operação pai não encontrada', 'error');
+            return;
+        }
+        
+        // Encontrar o último martingale da cadeia
+        const martingaleChain = historyData.history.filter(t => {
+            let current = t;
+            while (current && current.parent_trade_id) {
+                if (current.parent_trade_id === parentId) return true;
+                current = historyData.history.find(h => h.id === current.parent_trade_id);
+            }
+            return false;
+        }).sort((a, b) => a.martingale_level - b.martingale_level);
+        
+        // Calcular valor do Martingale (dobrar o valor da última operação da cadeia)
+        let lastAmount = baseTrade.amount;
+        if (martingaleChain.length > 0) {
+            const lastMartingale = martingaleChain[martingaleChain.length - 1];
+            lastAmount = lastMartingale.amount;
+        }
+        
+        const martingaleAmount = lastAmount * 2.15;
+        const nextLevel = martingaleLevel + 1;
+        
+        const details = `Ativo: ${asset}\nDireção: ${direction}\nValor: $${martingaleAmount.toFixed(2)} (valor anterior × 2.15)`;
+        const confirmed = await showConfirm(`Deseja executar Martingale ${nextLevel} para recuperar a perda?`, 'Confirmar Martingale', details);
+        
+        if (!confirmed) {
+            return;
+        }
+        
+        const response = await fetch('/api/trade', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                asset: asset,
+                direction: direction.toLowerCase(),
+                amount: martingaleAmount,
+                expiry: expiry,
+                is_martingale: true,
+                parent_trade_id: parentId
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            // Recarregar histórico automaticamente
+            loadHistory();
+        } else {
+            await showAlert('Erro ao executar Martingale: ' + (data.error || 'Erro desconhecido'), 'error');
+        }
+    } catch (error) {
+        await showAlert('Erro ao executar Martingale: ' + error.message, 'error');
+    }
+}
+
+// Atualizar histórico a cada 5 segundos
+setInterval(loadHistory, 5000);
+
+// Carregar histórico ao iniciar
+loadHistory();
+</script>
+{% endblock %}
+
