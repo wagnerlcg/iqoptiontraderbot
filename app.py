@@ -47,7 +47,18 @@ SinaisProcessor = sinais_processor_module.SinaisProcessor
 Sinal = sinais_processor_module.Sinal
 
 # Importar IQ_Option
-from iqoptionapi import IQ_Option
+# Tentar importar de diferentes formas para compatibilidade
+try:
+    from iqoptionapi import IQ_Option
+except ImportError:
+    try:
+        # Se não conseguir importar como pacote, importar diretamente
+        from stable_api import IQ_Option
+    except ImportError:
+        # Último recurso: adicionar diretório atual ao path e tentar novamente
+        if current_dir not in sys.path:
+            sys.path.insert(0, current_dir)
+        from stable_api import IQ_Option
 
 # Carregar variáveis de ambiente
 load_dotenv()
