@@ -9,7 +9,7 @@ echo "  Deploy Bot IQ Option API"
 echo "=========================================="
 
 # Variáveis - AJUSTE CONFORME SEU AMBIENTE
-PROJECT_DIR="/caminho/para/seu/projeto"
+PROJECT_DIR="/var/www/iqoptiontraderbot"
 PROJECT_USER="www-data"
 SERVICE_NAME="bot-iqoption"
 NGINX_SITE="bot-iqoption"
@@ -116,8 +116,8 @@ echo "7. Configurando Nginx..."
 sudo cp nginx.conf /etc/nginx/sites-available/$NGINX_SITE
 
 # Atualizar caminhos no arquivo de configuração
-sudo sed -i "s|/caminho/para/seu/projeto|$PROJECT_DIR|g" /etc/nginx/sites-available/$NGINX_SITE
-sudo sed -i "s|seu-dominio.com|$DOMAIN|g" /etc/nginx/sites-available/$NGINX_SITE
+sudo sed -i "s|/var/www/iqoptiontraderbot|$PROJECT_DIR|g" /etc/nginx/sites-available/$NGINX_SITE
+sudo sed -i "s|nomadtradersystem.com|$DOMAIN|g" /etc/nginx/sites-available/$NGINX_SITE
 
 # Criar link simbólico
 if [ ! -L "/etc/nginx/sites-enabled/$NGINX_SITE" ]; then
@@ -141,7 +141,7 @@ echo "8. Configurando systemd service..."
 sudo cp bot-iqoption.service /etc/systemd/system/$SERVICE_NAME.service
 
 # Atualizar caminhos no arquivo de serviço
-sudo sed -i "s|/caminho/para/seu/projeto|$PROJECT_DIR|g" /etc/systemd/system/$SERVICE_NAME.service
+sudo sed -i "s|/var/www/iqoptiontraderbot|$PROJECT_DIR|g" /etc/systemd/system/$SERVICE_NAME.service
 
 # Recarregar systemd
 sudo systemctl daemon-reload
