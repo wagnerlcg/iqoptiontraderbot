@@ -5,10 +5,10 @@ After=network.target
 [Service]
 User=www-data
 Group=www-data
-WorkingDirectory=/caminho/para/seu/projeto
-Environment="PATH=/caminho/para/seu/projeto/venv/bin"
-ExecStart=/caminho/para/seu/projeto/venv/bin/gunicorn \
-    --config /caminho/para/seu/projeto/gunicorn.conf.py \
+WorkingDirectory=/var/www/iqoptiontraderbot
+Environment="PATH=/var/www/iqoptiontraderbot/venv/bin"
+ExecStart=/var/www/iqoptiontraderbot/venv/bin/gunicorn \
+    --config /var/www/iqoptiontraderbot/gunicorn.conf.py \
     wsgi:app
 
 Restart=always
@@ -17,7 +17,7 @@ RestartSec=3
 # Segurança
 PrivateTmp=true
 ProtectSystem=strict
-ReadWritePaths=/caminho/para/seu/projeto/logs /caminho/para/seu/projeto/sinais.txt
+ReadWritePaths=/var/www/iqoptiontraderbot/logs /var/www/iqoptiontraderbot/sinais.txt
 
 [Install]
 WantedBy=multi-user.target
