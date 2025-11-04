@@ -4,6 +4,7 @@ WSGI entry point para produção com Gunicorn
 import os
 import sys
 import types
+import importlib.util
 
 # Adicionar o diretório do projeto ao path ANTES de importar app
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -17,19 +18,25 @@ if 'iqoptionapi' not in sys.modules:
     iqoptionapi_module.__file__ = os.path.join(current_dir, '__init__.py')
     sys.modules['iqoptionapi'] = iqoptionapi_module
     
-    # Também criar sub-módulos que stable_api.py precisa
-    sys.modules['iqoptionapi.api'] = types.ModuleType('iqoptionapi.api')
-    sys.modules['iqoptionapi.api'].__file__ = os.path.join(current_dir, 'api.py')
-    sys.modules['iqoptionapi.constants'] = types.ModuleType('iqoptionapi.constants')
-    sys.modules['iqoptionapi.constants'].__file__ = os.path.join(current_dir, 'constants.py')
-    sys.modules['iqoptionapi.country_id'] = types.ModuleType('iqoptionapi.country_id')
-    sys.modules['iqoptionapi.country_id'].__file__ = os.path.join(current_dir, 'country_id.py')
-    sys.modules['iqoptionapi.global_value'] = types.ModuleType('iqoptionapi.global_value')
-    sys.modules['iqoptionapi.global_value'].__file__ = os.path.join(current_dir, 'global_value.py')
-    sys.modules['iqoptionapi.expiration'] = types.ModuleType('iqoptionapi.expiration')
-    sys.modules['iqoptionapi.expiration'].__file__ = os.path.join(current_dir, 'expiration.py')
-    sys.modules['iqoptionapi.version_control'] = types.ModuleType('iqoptionapi.version_control')
-    sys.modules['iqoptionapi.version_control'].__file__ = os.path.join(current_dir, 'version_control.py')
+    # Importar os módulos reais e atribuí-los aos módulos virtuais
+    # Isso permite que stable_api.py encontre os módulos
+    modules_to_load = {
+        'api': 'api.py',
+        'constants': 'constants.py',
+        'country_id': 'country_id.py',
+        'global_value': 'global_value.py',
+        'expiration': 'expiration.py',
+        'version_control': 'version_control.py',
+    }
+    
+    for module_name, file_name in modules_to_load.items():
+        module_path = os.path.join(current_dir, file_name)
+        if os.path.exists(module_path):
+            spec = importlib.util.spec_from_file_location(f'iqoptionapi.{module_name}', module_path)
+            if spec and spec.loader:
+                module = importlib.util.module_from_spec(spec)
+                sys.modules[f'iqoptionapi.{module_name}'] = module
+                spec.loader.exec_module(module)
 
 # Adicionar diretórios ao path
 if parent_dir not in sys.path:
