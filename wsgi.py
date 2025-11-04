@@ -18,13 +18,20 @@ if parent_dir not in sys.path:
 if current_dir not in sys.path:
     sys.path.insert(0, current_dir)
 
-# Importar __init__.py do iqoptionapi que já tem lógica de importação
-# Isso carrega o módulo iqoptionapi corretamente
+# Importar módulo iqoptionapi diretamente
+# Como estamos no diretório iqoptionapi, precisamos importar como pacote
 try:
-    import __init__ as iqoptionapi_init
-    sys.modules['iqoptionapi'] = iqoptionapi_init
-except:
-    pass
+    import importlib
+    # Tentar importar iqoptionapi como pacote do diretório pai
+    iqoptionapi_module = importlib.import_module('iqoptionapi')
+    sys.modules['iqoptionapi'] = iqoptionapi_module
+except Exception as e:
+    # Se falhar, tentar importar __init__.py diretamente
+    try:
+        import __init__ as iqoptionapi_init
+        sys.modules['iqoptionapi'] = iqoptionapi_init
+    except:
+        pass
 
 # Importar a aplicação Flask
 from app import app
