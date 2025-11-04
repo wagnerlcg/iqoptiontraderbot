@@ -1051,8 +1051,9 @@ def api_executar_sinais():
                     try:
                         processor.carregar_sinais()
                         ultima_recarga_sinais = datetime.now()
-                        # Resetar controle apenas ao mudar de minuto
+                        # Resetar controles para permitir nova verificação
                         sinais_executados_hora = set()
+                        ultimo_minuto_verificado = None  # Resetar para permitir verificação do minuto atual
                         add_sinais_log(session_id, f"Sinais recarregados às {hora_atual.strftime('%H:%M:%S')}", 'info')
                     except Exception as e:
                         add_sinais_log(session_id, f"Erro ao recarregar sinais: {e}", 'error')
@@ -1067,27 +1068,28 @@ def api_executar_sinais():
                 if not sinais_execution['running']:
                     break
                 
-                # Executar sinais na hora exata (janela de 58s a 02s do próximo minuto)
-                # Verificar sempre que estiver na janela de execução e o minuto mudou
-                if (segundo >= 58 or segundo <= 2):
-                    # Verificar se mudou de minuto para evitar execuções múltiplas
-                    if ultimo_minuto_verificado != minuto_atual:
-                        ultimo_minuto_verificado = minuto_atual
-                        sinais_agora = processor.obter_sinais_para_hora(hora_atual)
+                # Verificar se mudou de minuto para processar sinais
+                # Sempre verificar quando o minuto muda, mas executar apenas na janela segura (58s-02s)
+                if ultimo_minuto_verificado != minuto_atual:
+                    ultimo_minuto_verificado = minuto_atual
+                    sinais_agora = processor.obter_sinais_para_hora(hora_atual)
+                    
+                    if sinais_agora:
+                        # Verificar flag antes de processar sinais encontrados
+                        if not sinais_execution['running']:
+                            break
                         
-                        if sinais_agora:
-                            # Verificar flag antes de processar sinais encontrados
-                            if not sinais_execution['running']:
-                                break
-                            
-                            hora_atual_key = hora_str
-                            
-                            # Verificar se já executou sinais nesta hora
-                            if hora_atual_key not in sinais_executados_hora:
+                        hora_atual_key = hora_str
+                        
+                        # Verificar se já executou sinais nesta hora
+                        if hora_atual_key not in sinais_executados_hora:
+                            # Executar sinais apenas na janela segura (58s a 02s do próximo minuto)
+                            # Isso garante que executamos no momento certo, mesmo com pequenos atrasos
+                            if segundo >= 58 or segundo <= 2:
                                 ultima_execucao_hora = hora_str
                                 sinais_executados_hora.add(hora_atual_key)
                                 
-                                add_sinais_log(session_id, f"{len(sinais_agora)} sinal(is) encontrado(s) para {hora_str}", 'info')
+                                add_sinais_log(session_id, f"{len(sinais_agora)} sinal(is) encontrado(s) para {hora_str} (segundo: {segundo})", 'info')
                                 
                                 for sinal in sinais_agora:
                                     # Verificar flag antes de processar cada sinal
