@@ -7,7 +7,7 @@ O projeto já está configurado com Git localmente. Siga estes passos para publi
 1. Acesse https://github.com e faça login com sua conta (wagnerlcg@gmail.com)
 2. Clique no botão **"+"** no canto superior direito e selecione **"New repository"**
 3. Configure o repositório:
-   - **Repository name**: `bot-iqoption-api` (ou outro nome de sua escolha)
+   - **Repository name**: `iqoptiontraderbot` (ou outro nome de sua escolha)
    - **Description**: "Sistema completo de trading automatizado para IQ Option com interface web"
    - **Visibility**: Escolha **Public** ou **Private**
    - **NÃO marque** "Initialize this repository with a README" (já temos um)
@@ -21,7 +21,7 @@ Após criar o repositório, GitHub mostrará instruções. Execute estes comando
 
 ```powershell
 # Adicionar o repositório remoto (substitua SEU_USUARIO pelo seu usuário do GitHub)
-git remote add origin https://github.com/SEU_USUARIO/bot-iqoption-api.git
+git remote add origin https://github.com/SEU_USUARIO/iqoptiontraderbot.git
 
 # Verificar que foi adicionado corretamente
 git remote -v
@@ -43,7 +43,7 @@ Se for solicitado login:
 
 1. Vá em GitHub → Settings → Developer settings → Personal access tokens → Tokens (classic)
 2. Clique em **"Generate new token"**
-3. Dê um nome ao token (ex: "bot-iqoption")
+3. Dê um nome ao token (ex: "iqoptiontraderbot")
 4. Selecione escopos: **repo** (acesso completo aos repositórios)
 5. Clique em **"Generate token"**
 6. **COPIE O TOKEN** (você não verá novamente)
@@ -61,14 +61,14 @@ winget install GitHub.cli
 gh auth login
 
 # Criar repositório e fazer push
-gh repo create bot-iqoption-api --public --source=. --remote=origin --push
+gh repo create iqoptiontraderbot --public --source=. --remote=origin --push
 ```
 
 ## Verificar Publicação
 
 Após o push, acesse:
 ```
-https://github.com/SEU_USUARIO/bot-iqoption-api
+https://github.com/SEU_USUARIO/iqoptiontraderbot
 ```
 
 Você deve ver todos os arquivos do projeto lá!
@@ -110,7 +110,7 @@ git branch -a
 git remote remove origin
 
 # Adicionar novamente
-git remote add origin https://github.com/SEU_USUARIO/bot-iqoption-api.git
+git remote add origin https://github.com/SEU_USUARIO/iqoptiontraderbot.git
 ```
 
 ### Erro: "authentication failed"

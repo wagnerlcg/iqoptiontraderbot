@@ -1,5 +1,5 @@
 [Unit]
-Description=Bot IQ Option API - Gunicorn daemon
+Description=IQ Option Trader Bot - Gunicorn daemon
 After=network.target
 
 [Service]

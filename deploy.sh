@@ -11,8 +11,8 @@ echo "=========================================="
 # Variáveis - AJUSTE CONFORME SEU AMBIENTE
 PROJECT_DIR="/var/www/iqoptiontraderbot"
 PROJECT_USER="www-data"
-SERVICE_NAME="bot-iqoption"
-NGINX_SITE="bot-iqoption"
+SERVICE_NAME="iqoptiontraderbot"
+NGINX_SITE="iqoptiontraderbot"
 DOMAIN="seu-dominio.com"
 
 echo ""
@@ -138,7 +138,7 @@ echo ""
 echo "8. Configurando systemd service..."
 
 # Copiar arquivo de serviço
-sudo cp bot-iqoption.service /etc/systemd/system/$SERVICE_NAME.service
+sudo cp iqoptiontraderbot.service /etc/systemd/system/$SERVICE_NAME.service
 
 # Atualizar caminhos no arquivo de serviço
 sudo sed -i "s|/var/www/iqoptiontraderbot|$PROJECT_DIR|g" /etc/systemd/system/$SERVICE_NAME.service
@@ -180,7 +180,7 @@ echo "Logs do serviço:"
 echo "  sudo journalctl -u $SERVICE_NAME -f"
 echo ""
 echo "Logs do Nginx:"
-echo "  sudo tail -f /var/log/nginx/bot-iqoption_error.log"
+echo "  sudo tail -f /var/log/nginx/iqoptiontraderbot_error.log"
 echo ""
 echo "Acesse sua aplicação em:"
 echo "  http://$DOMAIN"

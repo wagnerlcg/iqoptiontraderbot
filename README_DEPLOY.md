@@ -74,7 +74,7 @@ O script irá:
 - Substitua `seu-dominio.com` pelo seu domínio
 - Ajuste o caminho em `location /static` para o diretório static do projeto
 
-**bot-iqoption.service:**
+**iqoptiontraderbot.service:**
 - Ajuste `WorkingDirectory` e `PATH` para o caminho do seu projeto
 - Ajuste `User` e `Group` conforme necessário
 
@@ -96,22 +96,22 @@ Após obter o certificado, descomente o bloco HTTPS no arquivo `nginx.conf`.
 
 ```bash
 # Iniciar serviço
-sudo systemctl start bot-iqoption
+sudo systemctl start iqoptiontraderbot
 
 # Parar serviço
-sudo systemctl stop bot-iqoption
+sudo systemctl stop iqoptiontraderbot
 
 # Reiniciar serviço
-sudo systemctl restart bot-iqoption
+sudo systemctl restart iqoptiontraderbot
 
 # Ver status
-sudo systemctl status bot-iqoption
+sudo systemctl status iqoptiontraderbot
 
 # Ver logs
-sudo journalctl -u bot-iqoption -f
+sudo journalctl -u iqoptiontraderbot -f
 
 # Habilitar início automático
-sudo systemctl enable bot-iqoption
+sudo systemctl enable iqoptiontraderbot
 ```
 
 ### 8. Gerenciar Nginx
@@ -127,7 +127,7 @@ sudo systemctl reload nginx
 sudo systemctl restart nginx
 
 # Ver logs
-sudo tail -f /var/log/nginx/bot-iqoption_error.log
+sudo tail -f /var/log/nginx/iqoptiontraderbot_error.log
 ```
 
 ## Estrutura de Arquivos
@@ -138,7 +138,7 @@ sudo tail -f /var/log/nginx/bot-iqoption_error.log
 ├── wsgi.py                # Entry point WSGI para Gunicorn
 ├── gunicorn.conf.py       # Configuração do Gunicorn
 ├── nginx.conf             # Configuração do Nginx
-├── bot-iqoption.service   # Arquivo de serviço systemd
+├── iqoptiontraderbot.service   # Arquivo de serviço systemd
 ├── deploy.sh              # Script de deploy
 ├── requirements.txt       # Dependências Python
 ├── .env                   # Variáveis de ambiente (NÃO commitado)
@@ -153,12 +153,12 @@ sudo tail -f /var/log/nginx/bot-iqoption_error.log
 ## Troubleshooting
 
 ### Erro: "Connection refused"
-- Verifique se o Gunicorn está rodando: `sudo systemctl status bot-iqoption`
+- Verifique se o Gunicorn está rodando: `sudo systemctl status iqoptiontraderbot`
 - Verifique se a porta 8000 está aberta: `sudo netstat -tlnp | grep 8000`
 
 ### Erro: "502 Bad Gateway"
-- Verifique os logs do Nginx: `sudo tail -f /var/log/nginx/bot-iqoption_error.log`
-- Verifique os logs do Gunicorn: `sudo journalctl -u bot-iqoption -f`
+- Verifique os logs do Nginx: `sudo tail -f /var/log/nginx/iqoptiontraderbot_error.log`
+- Verifique os logs do Gunicorn: `sudo journalctl -u iqoptiontraderbot -f`
 - Verifique se o Gunicorn está escutando na porta correta
 
 ### Erro: "Permission denied"
@@ -170,7 +170,7 @@ sudo tail -f /var/log/nginx/bot-iqoption_error.log
 - Reinstale dependências: `pip install -r requirements.txt`
 
 ### Aplicação não atualiza após mudanças
-- Reinicie o serviço: `sudo systemctl restart bot-iqoption`
+- Reinicie o serviço: `sudo systemctl restart iqoptiontraderbot`
 - O Gunicorn com `preload_app = True` pode precisar de restart completo
 
 ## Segurança
@@ -184,9 +184,9 @@ sudo tail -f /var/log/nginx/bot-iqoption_error.log
 ## Monitoramento
 
 - Logs do Gunicorn: `logs/gunicorn_error.log`
-- Logs do Nginx: `/var/log/nginx/bot-iqoption_error.log`
-- Logs do Systemd: `sudo journalctl -u bot-iqoption -f`
-- Status do serviço: `sudo systemctl status bot-iqoption`
+- Logs do Nginx: `/var/log/nginx/iqoptiontraderbot_error.log`
+- Logs do Systemd: `sudo journalctl -u iqoptiontraderbot -f`
+- Status do serviço: `sudo systemctl status iqoptiontraderbot`
 
 ## Atualizações
 
@@ -194,7 +194,7 @@ Para atualizar a aplicação:
 
 ```bash
 # 1. Parar o serviço
-sudo systemctl stop bot-iqoption
+sudo systemctl stop iqoptiontraderbot
 
 # 2. Atualizar código (git pull ou scp)
 git pull origin main
@@ -204,7 +204,7 @@ source venv/bin/activate
 pip install -r requirements.txt
 
 # 4. Reiniciar serviço
-sudo systemctl start bot-iqoption
+sudo systemctl start iqoptiontraderbot
 ```
 
 ## Suporte

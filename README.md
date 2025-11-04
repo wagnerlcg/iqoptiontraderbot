@@ -23,8 +23,8 @@ Sistema completo de trading automatizado para IQ Option com interface web modern
 ### 1. Clone o repositório
 
 ```bash
-git clone https://github.com/seu-usuario/bot-iqoption-api.git
-cd bot-iqoption-api
+git clone https://github.com/seu-usuario/iqoptiontraderbot.git
+cd iqoptiontraderbot
 ```
 
 ### 2. Crie um ambiente virtual
@@ -81,7 +81,7 @@ Acesse `http://localhost:5000` no navegador.
 ## 📁 Estrutura do Projeto
 
 ```
-bot-iqoption-api/
+iqoptiontraderbot/
 ├── app.py                 # Aplicação Flask principal
 ├── wsgi.py                # Entry point WSGI (produção)
 ├── sinais_processor.py    # Processador de sinais
