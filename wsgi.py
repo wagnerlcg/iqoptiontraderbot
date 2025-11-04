@@ -10,6 +10,25 @@ import importlib.util
 current_dir = os.path.dirname(os.path.abspath(__file__))
 parent_dir = os.path.dirname(current_dir)
 
+def load_module_recursive(module_name, file_path, package=None):
+    """Carrega um módulo recursivamente e registra no sys.modules."""
+    if module_name in sys.modules:
+        return sys.modules[module_name]
+    
+    if os.path.exists(file_path):
+        try:
+            spec = importlib.util.spec_from_file_location(module_name, file_path)
+            if spec and spec.loader:
+                module = importlib.util.module_from_spec(spec)
+                sys.modules[module_name] = module
+                spec.loader.exec_module(module)
+                if package:
+                    setattr(package, module_name.split('.')[-1], module)
+                return module
+        except Exception as e:
+            print(f"Erro ao carregar {module_name}: {e}")
+    return None
+
 # CRÍTICO: Criar módulo virtual 'iqoptionapi' ANTES de importar app.py
 # Isso permite que stable_api.py encontre iqoptionapi.api, iqoptionapi.constants, etc.
 if 'iqoptionapi' not in sys.modules:
@@ -18,8 +37,29 @@ if 'iqoptionapi' not in sys.modules:
     iqoptionapi_module.__file__ = os.path.join(current_dir, '__init__.py')
     sys.modules['iqoptionapi'] = iqoptionapi_module
     
-    # Importar os módulos reais e atribuí-los aos módulos virtuais
-    # Isso permite que stable_api.py encontre os módulos
+    # Criar módulos http e ws como pacotes
+    http_module = types.ModuleType('iqoptionapi.http')
+    http_module.__path__ = [os.path.join(current_dir, 'http')]
+    sys.modules['iqoptionapi.http'] = http_module
+    setattr(iqoptionapi_module, 'http', http_module)
+    
+    ws_module = types.ModuleType('iqoptionapi.ws')
+    ws_module.__path__ = [os.path.join(current_dir, 'ws')]
+    sys.modules['iqoptionapi.ws'] = ws_module
+    setattr(iqoptionapi_module, 'ws', ws_module)
+    
+    # Criar sub-módulos ws.chanels e ws.received
+    ws_chanels_module = types.ModuleType('iqoptionapi.ws.chanels')
+    ws_chanels_module.__path__ = [os.path.join(current_dir, 'ws', 'chanels')]
+    sys.modules['iqoptionapi.ws.chanels'] = ws_chanels_module
+    setattr(ws_module, 'chanels', ws_chanels_module)
+    
+    ws_received_module = types.ModuleType('iqoptionapi.ws.received')
+    ws_received_module.__path__ = [os.path.join(current_dir, 'ws', 'received')]
+    sys.modules['iqoptionapi.ws.received'] = ws_received_module
+    setattr(ws_module, 'received', ws_received_module)
+    
+    # Carregar módulos principais primeiro
     modules_to_load = {
         'api': 'api.py',
         'constants': 'constants.py',
@@ -31,12 +71,7 @@ if 'iqoptionapi' not in sys.modules:
     
     for module_name, file_name in modules_to_load.items():
         module_path = os.path.join(current_dir, file_name)
-        if os.path.exists(module_path):
-            spec = importlib.util.spec_from_file_location(f'iqoptionapi.{module_name}', module_path)
-            if spec and spec.loader:
-                module = importlib.util.module_from_spec(spec)
-                sys.modules[f'iqoptionapi.{module_name}'] = module
-                spec.loader.exec_module(module)
+        load_module_recursive(f'iqoptionapi.{module_name}', module_path, iqoptionapi_module)
 
 # Adicionar diretórios ao path
 if parent_dir not in sys.path:
