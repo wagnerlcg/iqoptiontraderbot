@@ -53,12 +53,23 @@ try:
 except ImportError:
     try:
         # Se não conseguir importar como pacote, importar diretamente
-        from stable_api import IQ_Option
-    except ImportError:
-        # Último recurso: adicionar diretório atual ao path e tentar novamente
+        # Mas primeiro garantir que o diretório atual está no path
         if current_dir not in sys.path:
             sys.path.insert(0, current_dir)
         from stable_api import IQ_Option
+    except ImportError as e:
+        # Último recurso: criar módulo virtual iqoptionapi
+        import types
+        if 'iqoptionapi' not in sys.modules:
+            iqoptionapi_module = types.ModuleType('iqoptionapi')
+            iqoptionapi_module.__path__ = [current_dir]
+            sys.modules['iqoptionapi'] = iqoptionapi_module
+        
+        # Tentar novamente
+        try:
+            from stable_api import IQ_Option
+        except ImportError:
+            raise ImportError(f"Não foi possível importar IQ_Option. Erro: {e}")
 
 # Carregar variáveis de ambiente
 load_dotenv()
