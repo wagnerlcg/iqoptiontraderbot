@@ -20,16 +20,10 @@ if parent_dir not in sys.path:
     sys.path.insert(0, parent_dir)
 
 # IMPORTANTE: Remover current_dir do path se estiver lá
-# Mas NÃO remover se estivermos rodando via wsgi.py (produção)
-# Verificar se estamos rodando via wsgi.py verificando se __name__ é 'wsgi'
-# ou se o módulo iqoptionapi já foi criado
-import __main__
-running_as_wsgi = hasattr(__main__, '__file__') and '__main__' not in str(__main__.__file__)
-
-if current_dir in sys.path and not running_as_wsgi and 'iqoptionapi' not in sys.modules:
+# Isso é CRÍTICO para evitar conflito com o diretório http/ que interfere
+# no módulo padrão 'http' do Python
+if current_dir in sys.path:
     sys.path.remove(current_dir)
-# Se iqoptionapi já está em sys.modules ou estamos rodando via wsgi, 
-# não devemos remover current_dir do path para manter os módulos acessíveis
 
 # Agora podemos importar Flask sem conflito
 from flask import Flask, render_template, request, jsonify, session, redirect, url_for
