@@ -14,8 +14,10 @@ parent_dir = os.path.dirname(current_dir)
 if parent_dir not in sys.path:
     sys.path.insert(0, parent_dir)
 
-# NÃO adicionar current_dir ao path - isso causaria conflito com http/
-# Em vez disso, vamos importar os módulos usando o caminho completo
+# CRÍTICO: Garantir que current_dir NÃO está no path antes de importar qualquer coisa
+# Isso evita que o diretório http/ interfira no módulo http padrão do Python
+while current_dir in sys.path:
+    sys.path.remove(current_dir)
 
 # Importar módulo iqoptionapi diretamente
 # Como estamos no diretório iqoptionapi, precisamos importar como pacote
@@ -35,8 +37,15 @@ except Exception as e:
                 module = importlib.util.module_from_spec(spec)
                 sys.modules['iqoptionapi'] = module
                 spec.loader.exec_module(module)
+                # CRÍTICO: Remover current_dir novamente caso o __init__.py tenha adicionado
+                while current_dir in sys.path:
+                    sys.path.remove(current_dir)
     except Exception as e2:
         pass
+
+# Garantir novamente que current_dir não está no path antes de importar app
+while current_dir in sys.path:
+    sys.path.remove(current_dir)
 
 # Importar a aplicação Flask
 from app import app
