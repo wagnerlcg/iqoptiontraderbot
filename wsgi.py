@@ -51,15 +51,24 @@ while current_dir in sys.path:
 # Isso evita precisar adicionar current_dir ao path
 import importlib.util
 app_path = os.path.join(current_dir, 'app.py')
-if os.path.exists(app_path):
-    spec = importlib.util.spec_from_file_location('app', app_path)
-    if spec and spec.loader:
-        app_module = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(app_module)
-        app = app_module.app
-else:
-    # Fallback: tentar importar normalmente (pode causar conflito com http/)
-    from app import app
+
+# Verificar se o arquivo existe
+if not os.path.exists(app_path):
+    raise RuntimeError(f"app.py não encontrado em {app_path}. current_dir={current_dir}")
+
+# Importar usando importlib.util
+spec = importlib.util.spec_from_file_location('app', app_path)
+if not spec or not spec.loader:
+    raise RuntimeError(f"Não foi possível criar spec para app.py em {app_path}")
+
+app_module = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(app_module)
+
+# Obter a aplicação Flask do módulo
+if not hasattr(app_module, 'app'):
+    raise RuntimeError("app.py não contém a variável 'app'")
+
+app = app_module.app
 
 # Se necessário, configurar variáveis de ambiente aqui
 # os.environ['FLASK_ENV'] = 'production'
