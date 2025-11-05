@@ -96,6 +96,10 @@ load_dotenv()
 app = Flask(__name__)
 app.secret_key = os.getenv('FLASK_SECRET_KEY', 'dev-secret-key-change-in-production')
 
+# Configurar APPLICATION_ROOT para funcionar em subpath /bot
+# Isso permite que o Flask funcione corretamente quando está em nomadtradersystem.com/bot
+app.config['APPLICATION_ROOT'] = '/bot'
+
 # Variáveis globais para gerenciar conexão
 api_instances = {}
 stop_loss_protections = {}
