@@ -54,24 +54,41 @@ try:
     from iqoptionapi import IQ_Option
 except ImportError:
     try:
-        # Se não conseguir importar como pacote, importar diretamente
-        # Mas primeiro garantir que o diretório atual está no path
-        if current_dir not in sys.path:
-            sys.path.insert(0, current_dir)
-        from stable_api import IQ_Option
+        # Se não conseguir importar como pacote, importar diretamente usando importlib.util
+        # NÃO adicionar current_dir ao path para evitar conflito com http/
+        import importlib.util
+        stable_api_path = os.path.join(current_dir, "stable_api.py")
+        if os.path.exists(stable_api_path):
+            spec = importlib.util.spec_from_file_location("stable_api", stable_api_path)
+            if spec and spec.loader:
+                stable_api_module = importlib.util.module_from_spec(spec)
+                spec.loader.exec_module(stable_api_module)
+                IQ_Option = stable_api_module.IQ_Option
+            else:
+                raise ImportError("Não foi possível carregar stable_api.py")
+        else:
+            raise ImportError(f"stable_api.py não encontrado em {stable_api_path}")
     except ImportError as e:
-        # Último recurso: criar módulo virtual iqoptionapi
+        # Último recurso: criar módulo virtual iqoptionapi sem adicionar ao path
         import types
         if 'iqoptionapi' not in sys.modules:
             iqoptionapi_module = types.ModuleType('iqoptionapi')
             iqoptionapi_module.__path__ = [current_dir]
             sys.modules['iqoptionapi'] = iqoptionapi_module
         
-        # Tentar novamente
+        # Tentar novamente com importlib.util
         try:
-            from stable_api import IQ_Option
-        except ImportError:
-            raise ImportError(f"Não foi possível importar IQ_Option. Erro: {e}")
+            import importlib.util
+            stable_api_path = os.path.join(current_dir, "stable_api.py")
+            spec = importlib.util.spec_from_file_location("stable_api", stable_api_path)
+            if spec and spec.loader:
+                stable_api_module = importlib.util.module_from_spec(spec)
+                spec.loader.exec_module(stable_api_module)
+                IQ_Option = stable_api_module.IQ_Option
+            else:
+                raise ImportError(f"Não foi possível importar IQ_Option. Erro: {e}")
+        except Exception as e2:
+            raise ImportError(f"Não foi possível importar IQ_Option. Erro: {e2}")
 
 # Carregar variáveis de ambiente
 load_dotenv()
