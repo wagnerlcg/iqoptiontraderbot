@@ -107,8 +107,27 @@ class IQ_Option:
             self.re_subscribe_stream()
 
             # ---------for async get name: "position-changed", microserviceName
-            while global_value.balance_id == None:
-                pass
+            start_wait_balance = time.time()
+            while global_value.balance_id is None:
+                if time.time() - start_wait_balance > 20:
+                    logging.error("Timeout ao aguardar balance_id apos conectar")
+                    break
+                time.sleep(0.1)
+
+            if global_value.balance_id is None:
+                try:
+                    if getattr(self.api.profile, "balance_id", None) is not None:
+                        global_value.balance_id = self.api.profile.balance_id
+                except Exception:
+                    pass
+
+            if global_value.balance_id is None:
+                logging.error("Nao foi possivel obter balance_id apos conectar")
+                try:
+                    self.api.close()
+                except Exception:
+                    pass
+                return False, json.dumps({"code": "balance_id_timeout", "message": "Tempo excedido ao aguardar balance_id"})
 
             self.position_change_all(
                 "subscribeMessage", global_value.balance_id)

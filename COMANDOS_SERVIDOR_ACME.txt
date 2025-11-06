@@ -1,0 +1,37 @@
+# Comandos para Executar Diretamente no Servidor
+# Copie e cole estes comandos no servidor
+
+# 1. Criar diretório para desafio ACME
+sudo mkdir -p /var/www/html/.well-known/acme-challenge
+sudo chown -R www-data:www-data /var/www/html/.well-known
+
+# 2. Fazer backup da configuração atual
+sudo cp /etc/nginx/sites-available/iqoptiontraderbot /etc/nginx/sites-available/iqoptiontraderbot.backup
+
+# 3. Editar configuração do Nginx
+sudo nano /etc/nginx/sites-available/iqoptiontraderbot
+
+# No editor nano, adicione ANTES de qualquer outro location:
+# (Use Ctrl+O para salvar, Ctrl+X para sair)
+
+# Cole este bloco ANTES de qualquer location /bot:
+"""
+    # CRÍTICO: Permitir desafio ACME do Let's Encrypt (antes de qualquer outra regra)
+    location /.well-known/acme-challenge/ {
+        root /var/www/html;
+        try_files $uri =404;
+    }
+"""
+
+# 4. Depois de editar, testar configuração
+sudo nginx -t
+
+# 5. Se OK, recarregar Nginx
+sudo systemctl reload nginx
+
+# 6. Testar acesso ao desafio ACME
+curl http://nomadtradersystem.com/.well-known/acme-challenge/test
+
+# 7. Tentar criar certificados SSL novamente
+sudo certbot --nginx -d nomadtradersystem.com -d www.nomadtradersystem.com
+

@@ -96,9 +96,17 @@ load_dotenv()
 app = Flask(__name__)
 app.secret_key = os.getenv('FLASK_SECRET_KEY', 'dev-secret-key-change-in-production')
 
-# Configurar APPLICATION_ROOT para funcionar em subpath /bot
+# Configurar APPLICATION_ROOT para funcionar em subpath /bot (apenas em produção)
 # Isso permite que o Flask funcione corretamente quando está em nomadtradersystem.com/bot
-app.config['APPLICATION_ROOT'] = '/bot'
+# Em desenvolvimento local, não usar APPLICATION_ROOT
+if os.getenv('FLASK_ENV') == 'production' or os.getenv('APPLICATION_ROOT'):
+    app.config['APPLICATION_ROOT'] = '/bot'
+else:
+    # Em desenvolvimento, não usar APPLICATION_ROOT
+    pass
+
+# Configurar sessão permanente
+app.config['PERMANENT_SESSION_LIFETIME'] = 86400  # 24 horas
 
 # Variáveis globais para gerenciar conexão
 api_instances = {}
@@ -108,6 +116,65 @@ stop_loss_protections = {}
 trade_history = {}  # {session_id: [lista de operações]}
 sinais_logs = {}  # {session_id: [lista de logs]}
 losses_consecutivas = {}  # {session_id: {'count': int, 'skip_count': int}} - Controle de perdas consecutivas
+
+
+def parse_float_value(value, default=None, field_name="valor"):
+    """Converte entradas em float aceitando vírgula como separador decimal."""
+    if value is None or (isinstance(value, str) and value.strip() == ""):
+        if default is not None:
+            return float(default)
+        raise ValueError(f"{field_name} não informado")
+
+    if isinstance(value, (int, float)):
+        return float(value)
+
+    value_str = str(value).strip().replace(',', '.')
+    if value_str == "":
+        if default is not None:
+            return float(default)
+        raise ValueError(f"{field_name} vazio")
+
+    try:
+        return float(value_str)
+    except ValueError:
+        if default is not None:
+            return float(default)
+        raise ValueError(f"{field_name} inválido: {value}")
+
+
+def parse_int_value(value, default=None, field_name="valor"):
+    """Converte entradas em int aceitando vírgula como separador decimal."""
+    try:
+        float_value = parse_float_value(value, default, field_name)
+    except ValueError:
+        if default is not None:
+            return int(default)
+        raise
+
+    try:
+        return int(round(float(float_value)))
+    except (TypeError, ValueError):
+        if default is not None:
+            return int(default)
+        raise ValueError(f"{field_name} inválido: {value}")
+
+
+def resolve_numeric_setting(session_key, env_key, default, field_name, parser=parse_float_value):
+    """Obtém configuração numérica da sessão ou .env com parsing seguro."""
+    value = None
+
+    if session_key:
+        value = session.get(session_key)
+
+    if value is None:
+        env_value = os.getenv(env_key)
+        if env_value is not None and env_value != "":
+            value = env_value
+
+    if value is None:
+        value = default
+
+    return parser(value, default=default, field_name=field_name)
 
 
 def add_sinais_log(session_id, message, log_type='info'):
@@ -319,41 +386,62 @@ def index():
 @app.route('/login', methods=['POST'])
 def login():
     """Endpoint de login."""
-    data = request.json
-    email = data.get('email', '').strip()
-    password = data.get('password', '').strip()
-    account_type = data.get('account_type', 'PRACTICE')
-    
-    if not email or not password:
-        return jsonify({'success': False, 'message': 'Email e senha são obrigatórios'}), 400
-    
-    # Criar session_id ANTES de criar a instância da API
-    session_id = f"{email}_{int(time.time())}"
-    session['session_id'] = session_id
-    
-    # Criar instância da API com o session_id
-    api, error = create_api_instance(email, password, account_type, session_id)
-    
-    if api is None:
-        return jsonify({'success': False, 'message': f'Erro ao conectar: {error}'}), 400
-    
-    # Salvar informações na sessão
-    session['logged_in'] = True
-    session['email'] = email
-    session['account_type'] = account_type
-    
-    # Obter saldo inicial
     try:
-        balance = api.get_balance()
-        session['initial_balance'] = balance
-    except:
-        session['initial_balance'] = 0
-    
-    return jsonify({
-        'success': True,
-        'message': 'Login realizado com sucesso',
-        'balance': session['initial_balance']
-    })
+        if not request.is_json:
+            return jsonify({'success': False, 'message': 'Content-Type deve ser application/json'}), 400
+        
+        data = request.json
+        if not data:
+            return jsonify({'success': False, 'message': 'Dados não fornecidos'}), 400
+        
+        email = data.get('email', '').strip()
+        password = data.get('password', '').strip()
+        account_type = data.get('account_type', 'PRACTICE')
+        
+        if not email or not password:
+            return jsonify({'success': False, 'message': 'Email e senha são obrigatórios'}), 400
+        
+        # Criar session_id ANTES de criar a instância da API
+        session_id = f"{email}_{int(time.time())}"
+        session['session_id'] = session_id
+        print(f"DEBUG: Criando sessão com session_id: {session_id}")
+        
+        # Criar instância da API com o session_id
+        api, error = create_api_instance(email, password, account_type, session_id)
+        
+        if api is None:
+            print(f"DEBUG: Erro ao criar instância da API: {error}")
+            return jsonify({'success': False, 'message': f'Erro ao conectar: {error}'}), 400
+        
+        # Salvar informações na sessão
+        session['logged_in'] = True
+        session['email'] = email
+        session['account_type'] = account_type
+        
+        print(f"DEBUG: Login bem-sucedido. Session: {dict(session)}")
+        print(f"DEBUG: api_instances keys após login: {list(api_instances.keys())}")
+        
+        # Obter saldo inicial
+        try:
+            balance = api.get_balance()
+            session['initial_balance'] = balance
+        except Exception as e:
+            print(f"Erro ao obter saldo: {e}")
+            session['initial_balance'] = 0
+        
+        # Forçar salvamento da sessão
+        session.permanent = True
+        
+        return jsonify({
+            'success': True,
+            'message': 'Login realizado com sucesso',
+            'balance': session['initial_balance']
+        })
+    except Exception as e:
+        print(f"Erro no login: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'message': f'Erro interno: {str(e)}'}), 500
 
 
 @app.route('/logout', methods=['POST'])
@@ -379,17 +467,25 @@ def logout():
 @app.route('/dashboard')
 def dashboard():
     """Dashboard principal."""
+    print(f"DEBUG: Acessando dashboard. Session: {dict(session)}")
+    
     if 'logged_in' not in session or not session.get('logged_in'):
+        print("DEBUG: Usuário não está logado, redirecionando para index")
         return redirect(url_for('index'))
     
     # Verificar se session_id existe
     session_id = session.get('session_id')
     if not session_id:
+        print("DEBUG: session_id não encontrado na sessão")
         session.clear()
         return redirect(url_for('index'))
     
+    print(f"DEBUG: session_id encontrado: {session_id}")
+    print(f"DEBUG: api_instances keys: {list(api_instances.keys())}")
+    
     api = get_api_instance()
     if not api:
+        print("DEBUG: Instância da API não encontrada")
         # Se não há instância da API, mas usuário está logado, limpar sessão e redirecionar
         # Isso pode acontecer se o servidor foi reiniciado
         session.clear()
@@ -404,6 +500,7 @@ def dashboard():
         variation = balance - initial_balance
         variation_percent = (variation / initial_balance * 100) if initial_balance > 0 else 0
         
+        print(f"DEBUG: Dashboard renderizado com sucesso. Balance: {balance}")
         return render_template('dashboard.html', 
                              balance=balance,
                              initial_balance=initial_balance,
@@ -411,6 +508,9 @@ def dashboard():
                              variation_percent=variation_percent,
                              account_type=account_type)
     except Exception as e:
+        print(f"DEBUG: Erro ao renderizar dashboard: {e}")
+        import traceback
+        traceback.print_exc()
         return render_template('error.html', error=str(e))
 
 
@@ -452,12 +552,14 @@ def config():
     if 'logged_in' not in session or not session['logged_in']:
         return redirect(url_for('index'))
     
-    # Carregar configurações do .env ou session
-    stop_loss = float(os.getenv('IQ_OPTION_STOP_LOSS', session.get('stop_loss', 5)))
-    stop_win = float(os.getenv('IQ_OPTION_STOP_WIN', session.get('stop_win', 100)))
-    entry_type = os.getenv('IQ_OPTION_ENTRY_TYPE', session.get('entry_type', 'PERCENT'))
-    entry_value = float(os.getenv('IQ_OPTION_ENTRY_VALUE', session.get('entry_value', 1)))
-    gale = int(os.getenv('IQ_OPTION_GALE', session.get('gale', 0)))
+    try:
+        stop_loss = resolve_numeric_setting('stop_loss', 'IQ_OPTION_STOP_LOSS', 5.0, 'Stop Loss')
+        stop_win = resolve_numeric_setting('stop_win', 'IQ_OPTION_STOP_WIN', 100.0, 'Stop Win')
+        entry_type = session.get('entry_type', os.getenv('IQ_OPTION_ENTRY_TYPE', 'PERCENT'))
+        entry_value = resolve_numeric_setting('entry_value', 'IQ_OPTION_ENTRY_VALUE', 1.0, 'Valor da entrada')
+        gale = resolve_numeric_setting('gale', 'IQ_OPTION_GALE', 0, 'Gale', parser=parse_int_value)
+    except ValueError as e:
+        return render_template('error.html', error=str(e))
     
     return render_template('config.html',
                          stop_loss=stop_loss,
@@ -526,7 +628,10 @@ def stop_loss_page():
     if not api:
         return redirect(url_for('index'))
     
-    stop_loss_percent = float(session.get('stop_loss', os.getenv('IQ_OPTION_STOP_LOSS', 5)))
+    try:
+        stop_loss_percent = resolve_numeric_setting('stop_loss', 'IQ_OPTION_STOP_LOSS', 5.0, 'Stop Loss')
+    except ValueError as e:
+        return render_template('error.html', error=str(e))
     
     # Criar ou obter proteção de stop loss
     session_id = session.get('session_id')
@@ -735,7 +840,7 @@ def api_trade():
     data = request.json
     asset = data.get('asset', '')
     direction = data.get('direction', 'call').lower()
-    amount = float(data.get('amount', 0))
+    amount = parse_float_value(data.get('amount', 0), default=0.0, field_name='Valor da operação')
     expiry = int(data.get('expiry', 5))  # minutos
     is_martingale = data.get('is_martingale', False)
     parent_trade_id = data.get('parent_trade_id', None)
@@ -991,11 +1096,14 @@ def api_get_config():
     if 'logged_in' not in session or not session.get('logged_in'):
         return jsonify({'error': 'Não autenticado'}), 401
     
-    stop_loss = float(session.get('stop_loss', os.getenv('IQ_OPTION_STOP_LOSS', 5)))
-    stop_win = float(session.get('stop_win', os.getenv('IQ_OPTION_STOP_WIN', 100)))
-    entry_type = session.get('entry_type', os.getenv('IQ_OPTION_ENTRY_TYPE', 'PERCENT'))
-    entry_value = float(session.get('entry_value', os.getenv('IQ_OPTION_ENTRY_VALUE', 1)))
-    gale = int(os.getenv('IQ_OPTION_GALE', session.get('gale', 0)))
+    try:
+        stop_loss = resolve_numeric_setting('stop_loss', 'IQ_OPTION_STOP_LOSS', 5.0, 'Stop Loss')
+        stop_win = resolve_numeric_setting('stop_win', 'IQ_OPTION_STOP_WIN', 100.0, 'Stop Win')
+        entry_type = session.get('entry_type', os.getenv('IQ_OPTION_ENTRY_TYPE', 'PERCENT'))
+        entry_value = resolve_numeric_setting('entry_value', 'IQ_OPTION_ENTRY_VALUE', 1.0, 'Valor da entrada')
+        gale = resolve_numeric_setting('gale', 'IQ_OPTION_GALE', 0, 'Gale', parser=parse_int_value)
+    except ValueError as e:
+        return jsonify({'error': str(e)}), 400
     
     return jsonify({
         'stop_loss': stop_loss,
@@ -1035,9 +1143,13 @@ def api_executar_sinais():
     # Obter valores da sessão ANTES de criar a thread
     session_id = session.get('session_id')
     entry_type = session.get('entry_type', os.getenv('IQ_OPTION_ENTRY_TYPE', 'PERCENT'))
-    entry_value = float(session.get('entry_value', os.getenv('IQ_OPTION_ENTRY_VALUE', 1)))
-    stop_loss_percent = float(session.get('stop_loss', os.getenv('IQ_OPTION_STOP_LOSS', 5)))
-    gale_level = int(os.getenv('IQ_OPTION_GALE', session.get('gale', 0)))
+
+    try:
+        entry_value = resolve_numeric_setting('entry_value', 'IQ_OPTION_ENTRY_VALUE', 1.0, 'Valor da entrada')
+        stop_loss_percent = resolve_numeric_setting('stop_loss', 'IQ_OPTION_STOP_LOSS', 5.0, 'Stop Loss')
+        gale_level = resolve_numeric_setting('gale', 'IQ_OPTION_GALE', 0, 'Gale', parser=parse_int_value)
+    except ValueError as e:
+        return jsonify({'success': False, 'error': str(e)}), 400
     
     def executar_sinais_thread():
         try:
@@ -1099,7 +1211,8 @@ def api_executar_sinais():
                         # Resetar controles para permitir nova verificação
                         sinais_executados_hora = set()
                         ultimo_minuto_verificado = None  # Resetar para permitir verificação do minuto atual
-                        add_sinais_log(session_id, f"Sinais recarregados às {hora_atual.strftime('%H:%M:%S')}", 'info')
+                        # Log de sinais recarregados removido (não exibir)
+                        pass
                     except Exception as e:
                         add_sinais_log(session_id, f"Erro ao recarregar sinais: {e}", 'error')
                 

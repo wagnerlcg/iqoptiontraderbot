@@ -76,9 +76,36 @@ document.getElementById('loginForm').addEventListener('submit', async function(e
             })
         });
         
-        const data = await response.json();
+        // Verificar se a resposta é OK
+        if (!response.ok) {
+            const errorText = await response.text();
+            console.error('Erro na resposta:', response.status, errorText);
+            errorDiv.textContent = `Erro ${response.status}: ${errorText || 'Erro ao fazer login'}`;
+            errorDiv.style.display = 'block';
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'Entrar';
+            return;
+        }
+        
+        // Tentar parsear JSON
+        let data;
+        try {
+            data = await response.json();
+        } catch (jsonError) {
+            console.error('Erro ao parsear JSON:', jsonError);
+            const text = await response.text();
+            console.error('Resposta recebida:', text);
+            errorDiv.textContent = 'Erro ao processar resposta do servidor. Verifique o console.';
+            errorDiv.style.display = 'block';
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'Entrar';
+            return;
+        }
+        
+        console.log('Resposta do login:', data);
         
         if (data.success) {
+            console.log('Login bem-sucedido, redirecionando...');
             window.location.href = '/dashboard';
         } else {
             errorDiv.textContent = data.message || 'Erro ao fazer login';
@@ -87,6 +114,7 @@ document.getElementById('loginForm').addEventListener('submit', async function(e
             submitBtn.textContent = 'Entrar';
         }
     } catch (error) {
+        console.error('Erro ao fazer login:', error);
         errorDiv.textContent = 'Erro de conexão: ' + error.message;
         errorDiv.style.display = 'block';
         submitBtn.disabled = false;
