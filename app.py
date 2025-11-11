@@ -50,25 +50,20 @@ Sinal = sinais_processor_module.Sinal
 
 # Importar IQ_Option
 # Tentar importar de diferentes formas para compatibilidade
-try:
-    # Tentar importação relativa direta (quando rodando como pacote)
-    from .stable_api import IQ_Option  # type: ignore[no-redef]
-except ImportError:
-    # Fallback: carregar manualmente via importlib, garantindo nome de módulo consistente
-    import importlib.util
+import importlib.util
 
-    stable_api_path = os.path.join(current_dir, "stable_api.py")
-    if not os.path.exists(stable_api_path):
-        raise ImportError(f"stable_api.py não encontrado em {stable_api_path}")
+stable_api_path = os.path.join(current_dir, "stable_api.py")
+if not os.path.exists(stable_api_path):
+    raise ImportError(f"stable_api.py não encontrado em {stable_api_path}")
 
-    module_name = "iqoptionapi.stable_api" if __package__ else "stable_api"
-    spec = importlib.util.spec_from_file_location(module_name, stable_api_path)
-    if spec and spec.loader:
-        stable_api_module = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(stable_api_module)
-        IQ_Option = stable_api_module.IQ_Option  # type: ignore[attr-defined]
-    else:
-        raise ImportError("Não foi possível carregar stable_api.py")
+module_name = "iqoptionapi.stable_api" if __package__ else "stable_api"
+spec = importlib.util.spec_from_file_location(module_name, stable_api_path)
+if spec and spec.loader:
+    stable_api_module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(stable_api_module)
+    IQ_Option = stable_api_module.IQ_Option  # type: ignore[attr-defined]
+else:
+    raise ImportError("Não foi possível carregar stable_api.py")
 
 # Carregar variáveis de ambiente
 load_dotenv()
