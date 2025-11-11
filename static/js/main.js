@@ -133,7 +133,8 @@ async function logout() {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
-                }
+                },
+                credentials: 'same-origin'
             });
             
             const data = await response.json();
@@ -168,15 +169,19 @@ function showNotification(message, type = 'info') {
 }
 
 // Verificar conexão periodicamente
-setInterval(async () => {
-    try {
-        const response = await fetch('/api/balance');
-        if (!response.ok && response.status === 401) {
-            // Não autenticado, redirecionar para login
-            window.location.href = '/';
+if (window.IS_LOGGED_IN === true || window.IS_LOGGED_IN === 'true') {
+    setInterval(async () => {
+        try {
+            const response = await fetch('/api/balance', {
+                credentials: 'same-origin'
+            });
+            if (!response.ok && response.status === 401) {
+                // Não autenticado, redirecionar para login
+                window.location.href = '/';
+            }
+        } catch (error) {
+            console.error('Erro ao verificar conexão:', error);
         }
-    } catch (error) {
-        console.error('Erro ao verificar conexão:', error);
-    }
-}, 30000); // Verificar a cada 30 segundos
+    }, 30000); // Verificar a cada 30 segundos
+}
 
