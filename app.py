@@ -402,6 +402,7 @@ def login():
         session['logged_in'] = True
         session['email'] = email
         session['account_type'] = account_type
+        session['password'] = password  # necessário para recriar conexão em outros workers
         
         print(f"DEBUG: Login bem-sucedido. Session: {dict(session)}")
         print(f"DEBUG: api_instances keys após login: {list(api_instances.keys())}")
@@ -470,11 +471,22 @@ def dashboard():
     
     api = get_api_instance()
     if not api:
-        print("DEBUG: Instância da API não encontrada")
-        # Se não há instância da API, mas usuário está logado, limpar sessão e redirecionar
-        # Isso pode acontecer se o servidor foi reiniciado
-        session.clear()
-        return redirect(url_for('index'))
+        print("DEBUG: Instância da API não encontrada, tentando recriar")
+        email = session.get('email')
+        password = session.get('password')
+        account_type = session.get('account_type', 'PRACTICE')
+        session_id = session.get('session_id')
+
+        if email and password and session_id:
+            api, error = create_api_instance(email, password, account_type, session_id)
+            if api is None:
+                print(f"DEBUG: Falha ao recriar instância: {error}")
+                session.clear()
+                return redirect(url_for('index'))
+        else:
+            print("DEBUG: Dados insuficientes para recriar API")
+            session.clear()
+            return redirect(url_for('index'))
     
     try:
         balance = api.get_balance()
