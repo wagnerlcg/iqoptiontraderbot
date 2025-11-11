@@ -2,6 +2,7 @@
 Aplicação Web Flask para IQ Option API
 Interface moderna e responsiva para gerenciamento de trading
 """
+"ALTERADO: 11/11/2025"
 
 import os
 import sys
