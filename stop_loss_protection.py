@@ -88,19 +88,11 @@ class StopLossProtection:
         """Loop interno de monitoramento (executa em thread separada)."""
         while not self._stop_monitoring and not self.is_triggered:
             try:
-                # Atualizar saldo se API estiver disponível
-                if self.api:
-                    try:
-                        new_balance = float(self.api.get_balance())
-                        self.update_balance(new_balance)
-                    except Exception as e:
-                        print(f"ERRO ao verificar saldo: {e}")
-                
-                # Verificar se stop loss foi atingido
+                # Verificar se stop loss foi atingido (saldo atualizado externamente)
                 self._check_stop_loss()
-                
+
                 time.sleep(self.check_interval)
-                
+
             except Exception as e:
                 print(f"ERRO no monitoramento: {e}")
                 time.sleep(self.check_interval)
@@ -124,7 +116,7 @@ class StopLossProtection:
             
             # Verificar se stop loss foi atingido
             return self._check_stop_loss()
-    
+
     def _check_stop_loss(self) -> bool:
         """
         Verifica se o stop loss foi atingido.
@@ -237,13 +229,21 @@ class StopLossProtection:
             }
 
 
-def create_stop_loss_protection(api, stop_loss_percent: Optional[float] = None) -> Optional[StopLossProtection]:
+def create_stop_loss_protection(
+    api,
+    stop_loss_percent: Optional[float] = None,
+    *,
+    auto_fetch_balance: bool = True,
+    initial_balance: Optional[float] = None,
+) -> Optional[StopLossProtection]:
     """
     Cria uma instância de proteção de stop loss carregando configurações do ambiente.
     
     Args:
         api: Instância da API IQ Option
         stop_loss_percent: Porcentagem de stop loss (se None, lê de variável de ambiente)
+        auto_fetch_balance: Quando True, consulta saldo inicial diretamente na API.
+        initial_balance: Opcional. Saldo inicial já conhecido (requer auto_fetch_balance=False).
         
     Returns:
         StopLossProtection ou None se não for possível criar
@@ -258,11 +258,15 @@ def create_stop_loss_protection(api, stop_loss_percent: Optional[float] = None) 
             stop_loss_percent = 5.0  # Padrão de segurança
     
     # Obter saldo inicial
-    try:
-        initial_balance = float(api.get_balance())
-    except Exception as e:
-        print(f"ERRO: Nao foi possivel obter saldo inicial: {e}")
-        return None
+    if auto_fetch_balance:
+        try:
+            initial_balance = float(api.get_balance())
+        except Exception as e:
+            print(f"ERRO: Nao foi possivel obter saldo inicial: {e}")
+            return None
+    else:
+        if initial_balance is None:
+            raise ValueError("initial_balance deve ser informado quando auto_fetch_balance=False")
     
     if initial_balance <= 0:
         print("ERRO: Saldo inicial deve ser maior que zero!")
@@ -272,7 +276,7 @@ def create_stop_loss_protection(api, stop_loss_percent: Optional[float] = None) 
     protection = StopLossProtection(
         initial_balance=initial_balance,
         stop_loss_percent=stop_loss_percent,
-        api=api,
+        api=api if auto_fetch_balance else None,
         check_interval=0.5
     )
     

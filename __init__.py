@@ -27,12 +27,12 @@ _current_dir = os.path.dirname(os.path.abspath(__file__))
 # Obter diretório pai (onde iqoptionapi está como diretório)
 _parent_dir = os.path.dirname(_current_dir)
 
-# CRÍTICO: Adicionar apenas o diretório pai ao path
-# NÃO adicionar o diretório atual (_current_dir) para evitar conflito
-# com o diretório local 'http/' que interfere no módulo padrão 'http' do Python
+# Adicionar diretório pai para importar pacote e remover diretório atual
 if _parent_dir not in sys.path:
     sys.path.insert(0, _parent_dir)
-# NÃO adicionar _current_dir ao path para evitar conflito com http/
+
+if _current_dir in sys.path:
+    sys.path.remove(_current_dir)
 
 # Função para importar IQ_Option dinamicamente
 def _import_iq_option():

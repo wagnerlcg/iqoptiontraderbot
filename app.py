@@ -22,7 +22,7 @@ if parent_dir not in sys.path:
 # IMPORTANTE: Remover current_dir do path se estiver lá
 # Isso é CRÍTICO para evitar conflito com o diretório http/ que interfere
 # no módulo padrão 'http' do Python
-if current_dir in sys.path:
+if __package__ in (None, "", "__main__") and current_dir in sys.path:
     sys.path.remove(current_dir)
 
 # Agora podemos importar Flask sem conflito
@@ -51,44 +51,24 @@ Sinal = sinais_processor_module.Sinal
 # Importar IQ_Option
 # Tentar importar de diferentes formas para compatibilidade
 try:
-    from iqoptionapi import IQ_Option
+    # Tentar importação relativa direta (quando rodando como pacote)
+    from .stable_api import IQ_Option  # type: ignore[no-redef]
 except ImportError:
-    try:
-        # Se não conseguir importar como pacote, importar diretamente usando importlib.util
-        # NÃO adicionar current_dir ao path para evitar conflito com http/
-        import importlib.util
-        stable_api_path = os.path.join(current_dir, "stable_api.py")
-        if os.path.exists(stable_api_path):
-            spec = importlib.util.spec_from_file_location("stable_api", stable_api_path)
-            if spec and spec.loader:
-                stable_api_module = importlib.util.module_from_spec(spec)
-                spec.loader.exec_module(stable_api_module)
-                IQ_Option = stable_api_module.IQ_Option
-            else:
-                raise ImportError("Não foi possível carregar stable_api.py")
-        else:
-            raise ImportError(f"stable_api.py não encontrado em {stable_api_path}")
-    except ImportError as e:
-        # Último recurso: criar módulo virtual iqoptionapi sem adicionar ao path
-        import types
-        if 'iqoptionapi' not in sys.modules:
-            iqoptionapi_module = types.ModuleType('iqoptionapi')
-            iqoptionapi_module.__path__ = [current_dir]
-            sys.modules['iqoptionapi'] = iqoptionapi_module
-        
-        # Tentar novamente com importlib.util
-        try:
-            import importlib.util
-            stable_api_path = os.path.join(current_dir, "stable_api.py")
-            spec = importlib.util.spec_from_file_location("stable_api", stable_api_path)
-            if spec and spec.loader:
-                stable_api_module = importlib.util.module_from_spec(spec)
-                spec.loader.exec_module(stable_api_module)
-                IQ_Option = stable_api_module.IQ_Option
-            else:
-                raise ImportError(f"Não foi possível importar IQ_Option. Erro: {e}")
-        except Exception as e2:
-            raise ImportError(f"Não foi possível importar IQ_Option. Erro: {e2}")
+    # Fallback: carregar manualmente via importlib, garantindo nome de módulo consistente
+    import importlib.util
+
+    stable_api_path = os.path.join(current_dir, "stable_api.py")
+    if not os.path.exists(stable_api_path):
+        raise ImportError(f"stable_api.py não encontrado em {stable_api_path}")
+
+    module_name = "iqoptionapi.stable_api" if __package__ else "stable_api"
+    spec = importlib.util.spec_from_file_location(module_name, stable_api_path)
+    if spec and spec.loader:
+        stable_api_module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(stable_api_module)
+        IQ_Option = stable_api_module.IQ_Option  # type: ignore[attr-defined]
+    else:
+        raise ImportError("Não foi possível carregar stable_api.py")
 
 # Carregar variáveis de ambiente
 load_dotenv()
@@ -405,9 +385,10 @@ def login():
         session_id = f"{email}_{int(time.time())}"
         session['session_id'] = session_id
         print(f"DEBUG: Criando sessão com session_id: {session_id}")
-        
+        app.logger.info(f"Recebi login para {email} (conta {account_type})")
         # Criar instância da API com o session_id
         api, error = create_api_instance(email, password, account_type, session_id)
+        app.logger.info(f"Resultado login: api={'OK' if api else 'None'}, erro={error}")
         
         if api is None:
             print(f"DEBUG: Erro ao criar instância da API: {error}")
