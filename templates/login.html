@@ -101,8 +101,6 @@ document.getElementById('loginForm').addEventListener('submit', async function(e
             return;
         }
         
-        console.log('Resposta do login:', data);
-        
         if (data.success) {
             console.log('Login bem-sucedido, redirecionando...');
             window.location.href = '/dashboard';

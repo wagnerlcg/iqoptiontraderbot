@@ -362,7 +362,7 @@ def create_api_instance(email, password, account_type="PRACTICE", session_id=Non
 @app.route('/')
 def index():
     """Página inicial."""
-    if 'logged_in' in session and session['logged_in']:
+    if session.get('logged_in'):
         return redirect(url_for('dashboard'))
     return render_template('login.html')
 
